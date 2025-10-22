@@ -1,6 +1,15 @@
-three-js-component {
+network-visualization {
   display: block;
   aspect-ratio: 1;
   background-color: var(--background-color);
   color: var(--foreground-color);
+  position: relative;
+}
+
+network-visualization network-node {
+  display: none;
+}
+
+network-visualization network-edge {
+  display: none;
 }

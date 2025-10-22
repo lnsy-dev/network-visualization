@@ -13,7 +13,8 @@
       margin: auto;
     }
 
-    three-js-component {
+    network-visualization {
+      display: block;
       height: 400px;
       width: 400px;
       margin: auto;
@@ -51,11 +52,69 @@
       <p>Then the label expands with all of the content</p>
     </network-edge>
 
-    <network-edge source="test-node-3" target="test-node-3">
+    <network-edge source="test-node-3" target="test-node-2">
       <p>Edges and nodes don't necessarily require names.</p>
     </network-edge>
 
 
+
+    <network-node name="test node 4" id="test-node-4">
+      <h1>Test Node 4</h1>
+      <p>This is another test node.</p>
+    </network-node>
+
+    <network-node name="test node 5" id="test-node-5">
+      <h1>Test Node 5</h1>
+      <p>Yet another test node.</p>
+    </network-node>
+
+    <network-node name="test node 6" id="test-node-6">
+      <h1>Test Node 6</h1>
+      <p>A new node for the visualization.</p>
+    </network-node>
+
+    <network-node name="test node 7" id="test-node-7">
+      <h1>Test Node 7</h1>
+      <p>More nodes, more fun.</p>
+    </network-node>
+
+    <network-node name="test node 8" id="test-node-8">
+      <h1>Test Node 8</h1>
+      <p>Keep adding nodes.</p>
+    </network-node>
+
+    <network-node name="test node 9" id="test-node-9">
+      <h1>Test Node 9</h1>
+      <p>The final new node.</p>
+    </network-node>
+
+    <network-edge source="test-node-1" target="test-node-4">
+      <p>Edge from 1 to 4.</p>
+    </network-edge>
+
+    <network-edge source="test-node-2" target="test-node-5">
+      <p>Edge from 2 to 5.</p>
+    </network-edge>
+
+    <network-edge source="test-node-3" target="test-node-6">
+      <p>Edge from 3 to 6.</p>
+    </network-edge>
+
+    <network-edge source="test-node-4" target="test-node-7">
+      <p>Edge from 4 to 7.</p>
+    </network-edge>
+
+    <network-edge source="test-node-5" target="test-node-8">
+      <p>Edge from 5 to 8.</p>
+    </network-edge>
+
+    <network-edge source="test-node-6" target="test-node-9">
+      <p>Edge from 6 to 9.</p>
+    </network-edge>
+
+    <network-edge source="test-node-1" target="test-node-9">
+      <p>Edge from 6 to 9.</p>
+    </network-edge>
 
   </network-visualization>
   </main>
