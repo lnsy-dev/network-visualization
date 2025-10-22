@@ -13,3 +13,8 @@ network-visualization network-node {
 network-visualization network-edge {
   display: none;
 }
+
+network-visualization .node-label {
+  background-color: var(--background-color);
+  color: var(--foreground-color);
+}

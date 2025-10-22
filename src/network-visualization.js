@@ -130,11 +130,7 @@ class NetworkVisualization extends DataroomElement {
         labelDiv.className = 'node-label';
         labelDiv.textContent = node.name;
         labelDiv.style.color = this.foregroundColor;
-        labelDiv.style.fontSize = '12px';
-        labelDiv.style.fontFamily = 'sans-serif';
-        labelDiv.style.padding = '2px 5px';
-        labelDiv.style.background = 'rgba(0, 0, 0, 0.6)';
-        labelDiv.style.borderRadius = '3px';
+        labelDiv.style.background = this.backgroundColor;
         
         const label = new CSS2DObject(labelDiv);
         label.position.set(0, 10, 0);
