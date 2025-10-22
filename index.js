@@ -1,2 +1,2 @@
 import "./index.css";
-import "./src/three-js-component.js";
+import "./src/network-visualization.js";
