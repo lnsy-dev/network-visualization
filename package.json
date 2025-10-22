@@ -26,7 +26,8 @@
   },
   "dependencies": {
     "dataroom-js": "^0.6.0",
-    "three": "^0.180.0"
+    "three": "^0.180.0",
+    "three-forcegraph": "^1.43.0"
   },
   "devDependencies": {
     "@rspack/cli": "^1.5.6",

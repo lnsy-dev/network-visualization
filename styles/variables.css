@@ -14,8 +14,8 @@
 
 
 :root {
-  --background-color: #000;
-  --foreground-color: #fff;
+  --background-color: #fff;
+  --foreground-color: #000;
   --hi: #ff9900;
   --error-color: #ff0000;
   --warning-color: #ffa500;
