@@ -1,14 +1,26 @@
-require('dotenv').config();
+import dotenv from 'dotenv';
+dotenv.config();
 
-const path = require('path');
-const rspack = require('@rspack/core');
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-module.exports = {
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const isProd = process.env.NODE_ENV === 'production';
+
+export default {
   entry: './index.js',
-  mode: process.env.NODE_ENV === 'development' ? 'development' : 'production',
+  mode: isProd ? 'production' : 'development',
+  devtool: isProd ? false : 'source-map',
   output: {
-    filename: process.env.OUTPUT_FILE_NAME || 'main.min.js',
+    filename: process.env.OUTPUT_FILE_NAME || 'network-visualization.min.js',
     path: path.resolve(__dirname, 'dist'),
+    clean: true,
+  },
+  optimization: {
+    splitChunks: false,
+    runtimeChunk: false,
   },
   devServer: {
     static: {
@@ -17,21 +29,6 @@ module.exports = {
     compress: true,
     port: process.env.PORT || 3000,
   },
-  optimization: {
-    minimize: true,
-    splitChunks: false,
-    runtimeChunk: false,
-    minimizer: [
-      new rspack.SwcJsMinimizerRspackPlugin({
-        mangle: true,
-        compress: true,
-        format: { comments: false }
-      })
-    ]
-  },
-  plugins: [
-    new rspack.optimize.LimitChunkCountPlugin({ maxChunks: 1 }),
-  ],
   module: {
     rules: [
       {
@@ -44,27 +41,14 @@ module.exports = {
             loader: 'css-loader',
             options: {
               importLoaders: 1,
-              sourceMap: false,
+              sourceMap: !isProd,
             },
           },
-          {
-            loader: 'postcss-loader',
-            options: {
-              postcssOptions: {
-                plugins: [
-                  [
-                    'cssnano',
-                    { preset: ['default', { discardComments: { removeAll: true } }] }
-                  ]
-                ]
-              }
-            }
-          }
         ],
       },
       {
         test: /\.js$/,
-        exclude: /node_modules/,
+        // We still allow transpilation but also force dynamic imports to be bundled eagerly
         use: {
           loader: 'builtin:swc-loader',
           options: {
@@ -73,6 +57,11 @@ module.exports = {
                 syntax: 'ecmascript',
               },
             },
+          },
+        },
+        parser: {
+          javascript: {
+            dynamicImportMode: 'eager',
           },
         },
       },
