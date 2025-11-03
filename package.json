@@ -1,6 +1,6 @@
 {
   "name": "@lnsy/network-visualization",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A custom HTML component for representing graph visualiations",
   "main": "dist/network-visualization.min.js",
   "type": "module",
