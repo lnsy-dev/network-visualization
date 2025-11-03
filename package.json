@@ -1,11 +1,12 @@
 {
-  "name": "pochade-js",
-  "version": "0.5.0",
-  "description": "A context engineering boilerplate for generating custom HTML Elements",
-  "main": "dist/main.js",
+  "name": "@lnsy/network-visualization",
+  "version": "0.1.0",
+  "description": "A custom HTML component for representing graph visualiations",
+  "main": "dist/network-visualization.min.js",
+  "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lnsy-dev/pochade-js.git"
+    "url": "git+https://github.com/DATAROOM-NETWORK/network-visualization"
   },
   "keywords": [
     "Context",
@@ -16,18 +17,22 @@
   "author": "LNSY",
   "license": "Unlicense",
   "bugs": {
-    "url": "https://github.com/lnsy-dev/pochade-js/issues"
+    "url": "https://github.com/DATAROOM-NETWORK/network-visualization/issues"
   },
-  "homepage": "https://github.com/lnsy-dev/pochade-js#readme",
+  "homepage": "https://github.com/DATAROOM-NETWORK/network-visualization#readme",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "rspack serve",
-    "build": "rspack build"
+    "build": "NODE_ENV=production rspack build",
+    "prepublishOnly": "npm run build",
+    "blog-build": "node build-index.mjs",
+    "rss-build": "node generate-rss.mjs"
   },
   "dependencies": {
-    "dataroom-js": "^0.6.0",
+    "@lnsy/mark-down": "^0.9.0",
+    "dataroom-js": "^0.8.0",
     "three": "^0.180.0",
-    "three-forcegraph": "^1.43.0"
+    "topojson-client": "^3.1.0"
   },
   "devDependencies": {
     "@rspack/cli": "^1.5.6",
@@ -41,9 +46,8 @@
     "style-loader": "^4.0.0"
   },
   "files": [
-    "dist/main.min.js",
-    "index.css",
-    "styles/variables.css",
-    "src/"
+    "dist/network-visualization.min.js",
+    "README.md",
+    "LICENSE"
   ]
 }
