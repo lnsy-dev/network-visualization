@@ -52,12 +52,4 @@
 
 */
 
-
-@import "./styles/variables.css";
 @import "./styles/three-js-component.css";
-
-body {
-  background-color: var(--background-color);
-  color: var(--foreground-color);
-}
-

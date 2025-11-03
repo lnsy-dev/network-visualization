@@ -4,119 +4,62 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Project</title>
-  <script type="module" src="/main.min.js"></script>
+  <script type="module" src="https://unpkg.com/@lnsy/network-visualization/dist/network-visualization.min.js"></script>
+  <script type="module" src="https://unpkg.com/@lnsy/mark-down/dist/mark-down.min.js"></script>
+
+  <script type="module" src="https://unpkg.com/@lnsy/network-visualization/dist/network-visualization.min.js"></script>
+    <script src="https://lnsy-dev.github.io/simple-github-icon/github-icon.min.js"></script>
+<github-icon dark href="https://github.com/lnsy-dev/mark-down"></github-icon>
+
   <style>
-    main {
-      max-width: 60em;
-      align-content: center;
-      justify-content: center;
-      margin: auto;
+
+
+
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&display=swap');
+
+
+    :root {
+      --background-color: #dddbc7;
+      --foreground-color: #000;
+      --highlight-color: #ff9900;
+      --secondary-highlight-color: #ff9900;
+      --error-color: #ff0000;
+      --warning-color: #ffa500;
+      --confirm-color: #008000;
+      --h1-font-size: 200%;
+      --h2-font-size: 180%;
+      --h3-font-size: 150%;
     }
 
-    network-visualization {
-      display: block;
-      height: 400px;
-      width: 400px;
+    body {
+      background-color: var(--background-color);
+      color: var(--foreground-color);
       margin: auto;
+      max-width: 40em;
+      font-family: "Fira Code", monospace;
+  font-optical-sizing: auto;
+
     }
+
+    github-icon {
+      position: fixed;
+      right: 1em;
+      top: 1em;
+      height: 2em;
+    }
+
+    .connected-node {
+      color: var(--highlight-color);
+      cursor: pointer;
+    }
+
 
   </style>
 </head>
 <body>
   <main>
-  <network-visualization scale="0.5" zoom-labels="">
-    <network-node name="test node 1" id="test-node-1">
-      <h1>Test Node 1</h1>
-      <p>This is a snippet of text, it can be very long</p>
-      <p>It doesn't appear unless the node is clicked.</p>
 
-    </network-node>
-
-    <network-node name="test node 2" id="test-node-2">
-      <h1>Test Node 2</h1>
-      <p>Another. This is a snippet of text, it can be very long</p>
-      <p>It doesn't appear unless the node is clicked.</p>
-      
-    </network-node>
-
-    <network-node id="test-node-3">
-      <h1>Test Node 3</h1>
-      <p>Note that nodes don't necessarily require names</p>
-      <p>Again. This is a snippet of text, it can be very long</p>
-      <p>It doesn't appear unless the node is clicked.</p>
-      
-    </network-node>
-
-    <network-edge name="network edge" source="test-node-1" target="test-node-2">
-      <p>The network Edge content does not appear unless the user clicks the edge.</p>
-      <p>Then the label expands with all of the content</p>
-    </network-edge>
-
-    <network-edge source="test-node-3" target="test-node-2">
-      <p>Edges and nodes don't necessarily require names.</p>
-    </network-edge>
-
-
-
-    <network-node name="test node 4" id="test-node-4">
-      <h1>Test Node 4</h1>
-      <p>This is another test node.</p>
-    </network-node>
-
-    <network-node name="test node 5" id="test-node-5">
-      <h1>Test Node 5</h1>
-      <p>Yet another test node.</p>
-    </network-node>
-
-    <network-node name="test node 6" id="test-node-6">
-      <h1>Test Node 6</h1>
-      <p>A new node for the visualization.</p>
-    </network-node>
-
-    <network-node name="test node 7" id="test-node-7">
-      <h1>Test Node 7</h1>
-      <p>More nodes, more fun.</p>
-    </network-node>
-
-    <network-node name="test node 8" id="test-node-8">
-      <h1>Test Node 8</h1>
-      <p>Keep adding nodes.</p>
-    </network-node>
-
-    <network-node name="test node 9" id="test-node-9">
-      <h1>Test Node 9</h1>
-      <p>The final new node.</p>
-    </network-node>
-
-    <network-edge source="test-node-1" target="test-node-4">
-      <p>Edge from 1 to 4.</p>
-    </network-edge>
-
-    <network-edge source="test-node-2" target="test-node-5">
-      <p>Edge from 2 to 5.</p>
-    </network-edge>
-
-    <network-edge source="test-node-3" target="test-node-6">
-      <p>Edge from 3 to 6.</p>
-    </network-edge>
-
-    <network-edge source="test-node-4" target="test-node-7">
-      <p>Edge from 4 to 7.</p>
-    </network-edge>
-
-    <network-edge source="test-node-5" target="test-node-8">
-      <p>Edge from 5 to 8.</p>
-    </network-edge>
-
-    <network-edge source="test-node-6" target="test-node-9">
-      <p>Edge from 6 to 9.</p>
-    </network-edge>
-
-    <network-edge source="test-node-1" target="test-node-9">
-      <p>Edge from 6 to 9.</p>
-    </network-edge>
-
-  </network-visualization>
+    <mark-down src="README.md"></mark-down>
   </main>
 
 </body>
