@@ -81,6 +81,25 @@ The main container element for the 3D network graph.
 
 - **`labels-zoom-level`** (optional): Zoom level at which labels become visible. Default: `1.1`
 
+#### Events
+
+The component emits the following custom events:
+
+- **`metadata-shown`**: Fired when a node or group is selected and metadata is displayed
+  - Event detail contains:
+    - `title`: The name or ID of the selected node/group
+    - `content`: The HTML content of the node/group
+    - `links`: Array of connected node names (or group member names)
+
+```js
+const viz = document.querySelector('network-visualization');
+viz.addEventListener('metadata-shown', (e) => {
+  console.log('Selected:', e.detail.title);
+  console.log('Content:', e.detail.content);
+  console.log('Connected nodes:', e.detail.links);
+});
+```
+
 #### CSS Styling
 
 The component inherits `color` and `background-color` from CSS:

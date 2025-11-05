@@ -61,16 +61,22 @@ export default class MetadataDisplay {
       const connections_container = this.createElement('div', {class:'connected-nodes'}, metadata_container);
       this.createElement('h3', {content:'Connected Nodes'}, connections_container);
       
+      const list = this.createElement('ul', {}, connections_container);
+      
       connectedNodeIds.forEach(nodeId => {
         const connectedNode = nodes.find(n => n.id === nodeId);
         
         if(connectedNode){
-          const node_div = this.createElement('div', {
-            class:'connected-node',
-            content: connectedNode.name || connectedNode.id
-          }, connections_container);
+          const list_item = this.createElement('li', {}, list);
           
-          node_div.addEventListener('click', () => {
+          const node_link = this.createElement('a', {
+            class:'connected-node',
+            href: '#',
+            content: connectedNode.name || connectedNode.id
+          }, list_item);
+          
+          node_link.addEventListener('click', (e) => {
+            e.preventDefault();
             onNodeClick(nodeId);
           });
         }
@@ -112,18 +118,24 @@ export default class MetadataDisplay {
       const members_container = this.createElement('div', {class:'connected-nodes'}, metadata_container);
       this.createElement('h3', {content:'Group Members'}, members_container);
       
+      const list = this.createElement('ul', {}, members_container);
+      
       group.nodeIds.forEach(nodeId => {
         const memberNode = nodes.find(n => n.id === nodeId);
         
         if(memberNode){
           memberNames.push(memberNode.name || memberNode.id);
           
-          const node_div = this.createElement('div', {
-            class:'connected-node',
-            content: memberNode.name || memberNode.id
-          }, members_container);
+          const list_item = this.createElement('li', {}, list);
           
-          node_div.addEventListener('click', () => {
+          const node_link = this.createElement('a', {
+            class:'connected-node',
+            href: '#',
+            content: memberNode.name || memberNode.id
+          }, list_item);
+          
+          node_link.addEventListener('click', (e) => {
+            e.preventDefault();
             onNodeClick(nodeId);
           });
         }
