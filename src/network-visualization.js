@@ -15,10 +15,15 @@ import InteractionHandler from './interaction-handler.js';
  * @extends DataroomElement
  * 
  * @example
- * <network-visualization scale="1.0" labels-zoom-level="1.1">
+ * <network-visualization scale="1.0" labels-zoom-level="1.1" minimum-node-size="1.5" zoom-to-fit>
  *   <network-node id="node1" name="Node 1">Content</network-node>
  *   <network-edge source="node1" target="node2" name="Edge">Edge content</network-edge>
  * </network-visualization>
+ * 
+ * @attribute {number} minimum-node-size - Minimum size multiplier for nodes (default: 1.0)
+ * @attribute {number} scale - Scale factor for all nodes (default: 1.0)
+ * @attribute {number} labels-zoom-level - Zoom level at which labels become visible
+ * @attribute {boolean} zoom-to-fit - Whether to automatically zoom camera to fit all nodes (default: false)
  */
 class NetworkVisualization extends DataroomElement {
   /**
@@ -34,12 +39,14 @@ class NetworkVisualization extends DataroomElement {
     const computedStyle = window.getComputedStyle(this);
     this.foregroundColor = computedStyle.color;
     const backgroundColor = computedStyle.backgroundColor;
+    const minimumNodeSize = parseFloat(this.getAttribute('minimum-node-size')) || 1.0;
 
     this.sceneManager = new SceneManager(this, width, height, backgroundColor);
     this.graphBuilder = new GraphBuilder(
       this.sceneManager.graphGroup, 
       this.foregroundColor, 
-      backgroundColor
+      backgroundColor,
+      minimumNodeSize
     );
     this.wireframeManager = new GroupWireframeManager(this.sceneManager.graphGroup);
     this.metadataDisplay = new MetadataDisplay(this, this.create.bind(this));
@@ -74,8 +81,10 @@ class NetworkVisualization extends DataroomElement {
     this.wireframeManager.createWireframes(groups);
     this.wireframeManager.update(nodes);
     
-    // Zoom out to fit all elements in view
-    this.sceneManager.fitCameraToScene();
+    // Zoom out to fit all elements in view if zoom-to-fit attribute is present
+    if (this.hasAttribute('zoom-to-fit')) {
+      this.sceneManager.fitCameraToScene();
+    }
   }
 
   /**

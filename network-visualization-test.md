@@ -1,0 +1,193 @@
+<aside>
+<p><em>Contact</em></p>
+</aside>
+<h1>LNSY</h1>
+<p><a href="mailto:lindsey.mysse@gmail.com">lindsey.mysse@gmail.com</a></p>
+<hr>
+<aside>
+<p><em>Occupation</em></p>
+</aside>
+<p>Business Focused Software Practice</p>
+<ul>
+<li data-line="15">Enterprise Resource Planning Software Professional</li>
+<li data-line="16">AI Orchestration Expert</li>
+<li data-line="17">Full Stack Software Engineer</li>
+</ul>
+<hr>
+<aside>
+<p><em>Software</em></p>
+</aside>
+<p>While I do keep up with contemporary frameworks, I love writing vanilla js, css and HTML. Here are some examples:</p>
+<ul>
+<li data-line="27"><a href="/mark-down">mark-down component</a> – a custom web component to render markdown beautifully</li>
+<li data-line="28"><a href="/network-visualizer">network-visualizer</a> – render network visualizations using standard html as markup</li>
+<li data-line="29"><a href="/markdown-editor">markdown-editor</a> – a beautiful markdown editor.</li>
+<li data-line="30"><a href="">dataroom-js</a> – My micro-framework on top of custom HTML elements with some helper functions</li>
+<li data-line="31"><a href="">json-editor</a> – minimal JSON/YAML Editing made beautiful in a convenient web component</li>
+<li data-line="32"><a href="">qr-code</a> – a QR code component in vanilla JS</li>
+<li data-line="33"><a href="">pochade-js</a> – quick vanilla web components with web workers already incorporated!</li>
+<li data-line="34"><a href="">geo-map</a> – custom mapping framework that makes interacting with maps easy</li>
+<li data-line="35"><a href="">Dataroom Charts</a> – easy d3.js charts as custom HTMl elements</li>
+</ul>
+<hr>
+<aside>
+<p><em>Current Location</em></p>
+</aside>
+<p><globe-component  scale="0.6"></globe-component></p>
+<hr>
+<aside>
+<p><em>Technologies</em></p>
+</aside>
+<network-visualization created="2025-10-22T12:46" updated="2025-10-22T13:20" scale="0.3">
+	<network-node id="0" name="JavaScript" wireframe="true" shape="torus">
+		<h1>EcmaScript (aka JavaScript)</h1>
+		<p>The single most used programming language on earth. Loved by billions, hated by thousands. I have watched this language grow over the decades, and it has only gotten better.</p>
+	</network-node>
+	
+	<network-node id="1" name="CSS" wireframe="true">
+		<h1>Cascading Style Sheets (CSS)</h1>
+		<p>CSS is as complex as it is beautiful. I am often hired specifically to work on CSS for projects. More than JavaScript, TypeScript or any other framework, CSS determines the feel of your website more than anything.</p>
+	</network-node>
+	
+	<network-node id="2" name="HTML" wireframe="true" shape="cube">
+		<h1>HTML</h1>
+		<p>HTML has become extensible with Custom HTML Elements. It is styleable using XSL Stylesheets. Utilizing HTML to its full potential allows us to build websites that load faster, function better and stay online and error free longer.</p>
+	</network-node>
+	
+	<network-node id="3" name="The Web" shape="sphere" wireframe="true">
+		<h1>The Web</h1>
+		<p>The collection of technologies that make up the world wide web. From DNS to ES6, I can advise you on how to properly utilize the single most powerful mass communication platform humanity has ever devised.</p>
+	</network-node>
+	
+	<network-node id="4" name="Node.js" wireframe="true" shape="cube">
+		<h1>Node.js</h1>
+		<p>A trusty JavaScript Run Time. From servers that scale to billions to those script that run on your laptop that saves you hundreds of hours of your time, Node.js is that trusty helper.</p>
+	</network-node>
+	
+	<network-node id="5" name="Bun.sh" wireframe="true" shape="cube">
+		<h1>Bun.sh</h1>
+		<p>Node.js's younger, cooler brother. With built in PostGres Database and a well thought out file API Bun.sh is perfect for local application that run internally for your organization.</p>
+	</network-node>
+	
+	<network-node id="6" name="QuickJS" wireframe="true" shape="cube">
+		<h1>QuickJS</h1>
+		<p>A tiny runtime designed to run across multiple chip architectures. Can compile JS code into runtime code for speed. Can import C libraries and use them immediately.</p>
+	</network-node>
+	
+	<network-node id="7" name="SQL" wireframe="true" shape="cube">
+		<h1>SQL</h1>
+		<p>One of the most installed pieces of software on earth. I can help you design, visualize and optimize your databases, from SQL to Neo4J.</p>
+	</network-node>
+	
+	<network-node id="8" name="Databases" wireframe="true" shape="cube">
+		<h1>Databases</h1>
+		<p>I have decades of experience working with Databases in many forms. I can help you choose the correct technology for your company.</p>
+	</network-node>
+	
+	<network-node id="9" name="PostGres" wireframe="true" shape="cube">
+		<h1>PostGres</h1>
+		<p>A younger, faster and more extensible variant of SQL.</p>
+	</network-node>
+	
+	<network-node id="10" name="N8N" wireframe="true" shape="sphere">
+		<h1>N8N</h1>
+		<p>A visual programming language for orchestrating your AI workflow. From custom chatbots that know your entire organization and document indexing, N8N is my favorite paradigm.</p>
+	</network-node>
+	
+	<network-node id="11" name="Node-Red" wireframe="true" shape="sphere">
+		<h1>Node Red</h1>
+		<p>AI Orchestration tool. While N8N has the hype, it is the older, sturdier version with a better license.</p>
+	</network-node>
+	
+	<network-node id="12" name="Linux" wireframe="true">
+		<h1>Linux</h1>
+		<p>I have decades of experience setting up, maintaining linux servers form servers to desktops. I hear it's the year of the Linux Desktop, also.</p>
+	</network-node>
+	
+	<network-node id="13" name="Framework Du Jour" wireframe="true" shape="sphere">
+		<h1>Framework Du Jour</h1>
+		<p>React, Vue, HTMLx, Next.js, whatever. I can pick the right size technology for your company.  I don't engage in upsells or resume-driven-development, and I can give you an honest assessment of the strengths and weaknesses of each choice.</p>
+	</network-node>
+	
+	<network-node id="14" name="Mapping" wireframe="true" shape="cube">
+		<p>Another technology I've had decades in experience in. From ArcGIS to OpenStreetMaps, I can help your company pick the right size mapping solution.</p>
+	</network-node>
+	
+	<network-node id="15" name="ArcGIS" wireframe="true" shape="cube">
+		<h1>ArcGIS</h1>
+		<p>I have decades of ArcGIS experience at this point, though I prefer</p>
+	</network-node>
+	
+	<network-node id="16" name="ESRI" wireframe="true" shape="cube">
+		<h1>ESRI</h1>
+		<p>Mapping System</p>
+	</network-node>
+	
+	<network-node id="17" name="MapBox" wireframe="true" shape="cube">
+		<h1>MapBox</h1>
+		<p>I built my own mapping framework on this code.</p>
+	</network-node>
+	
+	<network-node id="18" name="OpenStreetMap" wireframe="true" shape="cube">
+		<h1>Open Street Map:</h1>
+	</network-node>
+	
+	<network-node id="19" name="Leaflet" wireframe="true" shape="cube">
+		<h1>Leaflet</h1>
+	</network-node>
+	
+	<network-node id="20" name="Google Earth Engine" wireframe="true" shape="cube">
+		<h1>Google Earth Engine</h1>
+	</network-node>
+	
+	<network-node id="21" name="Visual Programming Languages" wireframe="true" shape="sphere">
+		<h1>Visual Programming Languages</h1>
+		<p>Different from the standard text on the page, visual programming languages allow for clearer representation of Queu based workflows and event driven applications.</p>
+	</network-node>
+	
+	<network-node id="22" name="Software" wireframe="true,shape">
+		<h1>Software</h1>
+		<p>The greatest human art since painting. Applying logic and language to generate the first global mass-culture.</p>
+	</network-node>
+	
+	<network-node id="23" name="Obsidian.md">
+		<h1>Obsidian.md</h1>
+		<p>My favorite note taking software. I have extensively customized my notes, and can set up your notes to success.</p>
+	</network-node>
+	
+	<network-edge source="0" target="2"></network-edge>
+	<network-edge source="1" target="2"></network-edge>
+	<network-edge source="0" target="3"></network-edge>
+	<network-edge source="1" target="3"></network-edge>
+	<network-edge source="2" target="3"></network-edge>
+	<network-edge source="4" target="0"></network-edge>
+	<network-edge source="4" target="5"></network-edge>
+	<network-edge source="5" target="0"></network-edge>
+	<network-edge source="6" target="0"></network-edge>
+	<network-edge source="8" target="7"></network-edge>
+	<network-edge source="5" target="9"></network-edge>
+	<network-edge source="9" target="7"></network-edge>
+	<network-edge source="9" target="8"></network-edge>
+	<network-edge source="16" target="14"></network-edge>
+	<network-edge source="17" target="14"></network-edge>
+	<network-edge source="15" target="14"></network-edge>
+	<network-edge source="18" target="14"></network-edge>
+	<network-edge source="19" target="14"></network-edge>
+	<network-edge source="20" target="14"></network-edge>
+	<network-edge source="17" target="0"></network-edge>
+	<network-edge source="13" target="0"></network-edge>
+	<network-edge source="21" target="11"></network-edge>
+	<network-edge source="21" target="10"></network-edge>
+	<network-edge source="22" target="0"></network-edge>
+	<network-edge source="22" target="21"></network-edge>
+	<network-edge source="22" target="3"></network-edge>
+	<network-edge source="12" target="22"></network-edge>
+	<network-edge source="12" target="3"></network-edge>
+</network-visualization><hr>
+<aside>
+<p><em>Links</em></p>
+</aside>
+<p><a href="./case-studies.html">Case Studies</a> - Check out some case studies to see what I can do for you<br>
+<a href="./blog">Blog</a><br>
+<a href="/resume">Resume</a></p>
+

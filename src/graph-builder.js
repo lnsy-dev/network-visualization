@@ -16,11 +16,13 @@ export default class GraphBuilder {
    * @param {THREE.Group} graphGroup - The Three.js group to add objects to
    * @param {string} foregroundColor - Default color for nodes and edges
    * @param {THREE.Color} backgroundColor - Background color for labels
+   * @param {number} minimumNodeSize - Minimum size for node geometries
    */
-  constructor(graphGroup, foregroundColor, backgroundColor) {
+  constructor(graphGroup, foregroundColor, backgroundColor, minimumNodeSize = 1.0) {
     this.graphGroup = graphGroup;
     this.foregroundColor = foregroundColor;
     this.backgroundColor = backgroundColor;
+    this.minimumNodeSize = minimumNodeSize;
     this.nodes = [];
     this.links = [];
     this.groups = [];
@@ -304,24 +306,29 @@ export default class GraphBuilder {
     this.nodes.forEach(node => {
       const group = new THREE.Group();
       
+      // Apply minimum size constraint to base geometry dimensions
+      const baseSize = Math.max(5, this.minimumNodeSize * 5);
+      const baseHeight = Math.max(10, this.minimumNodeSize * 10);
+      const baseRadius = Math.max(2, this.minimumNodeSize * 2);
+      
       let geometry;
       switch(node.shape) {
         case 'cube':
         case 'box':
         case 'square':
-          geometry = new THREE.BoxGeometry(10, 10, 10);
+          geometry = new THREE.BoxGeometry(baseHeight, baseHeight, baseHeight);
           break;
         case 'sphere':
-          geometry = new THREE.SphereGeometry(5, 4, 4);
+          geometry = new THREE.SphereGeometry(baseSize, 4, 4);
           break;
         case 'pyramid':
-          geometry = new THREE.ConeGeometry(5, 10, 3);
+          geometry = new THREE.ConeGeometry(baseSize, baseHeight, 3);
           break;
         case 'torus':
-          geometry = new THREE.TorusGeometry(5, 2, 4, 4);
+          geometry = new THREE.TorusGeometry(baseSize, baseRadius, 4, 4);
           break;
         default:
-          geometry = new THREE.ConeGeometry(5, 10, 3);
+          geometry = new THREE.ConeGeometry(baseSize, baseHeight, 3);
       }
       
       const material = new THREE.MeshBasicMaterial({ 
