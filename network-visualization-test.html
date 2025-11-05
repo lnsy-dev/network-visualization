@@ -7,13 +7,28 @@
 	<script type="module" src="/network-visualization.min.js"></script>
 	<style>
 		:root {
-			--foreground-color: white;
+			--foreground-color: black;
+			--background-color: white;
+		}
+
+		body {
+			display: flex;
+			align-content: center;
+			justify-items: center;
+		}
+
+		network-visualization {
+			max-width: calc(100vw - 80pt);
+			max-height: calc(100vh - 80pt);
+			width: 100%;
 		}
 
 		.selected-node-metadata {
-			position: absolute;
+			display: block;
+			position: fixed;
+			bottom: 0px;
 			left: 0px;
-			top: 0px;
+			background-color: rgba(255,255,255,0.7);
 			
 		}
 	</style>
@@ -165,6 +180,10 @@
 	<network-edge source="22" target="3"></network-edge>
 	<network-edge source="12" target="22"></network-edge>
 	<network-edge source="12" target="3"></network-edge>
+
+	<network-group name="Framework Du Jour" node-ids="0,1,2,3,4">
+		
+	</network-group>
 </network-visualization>
 </body>
 </html>
