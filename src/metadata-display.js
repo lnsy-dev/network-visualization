@@ -76,6 +76,17 @@ export default class MetadataDisplay {
         }
       });
     }
+
+    const connectedNodeNames = Array.from(connectedNodeIds).map(nodeId => {
+      const connectedNode = nodes.find(n => n.id === nodeId);
+      return connectedNode ? (connectedNode.name || connectedNode.id) : nodeId;
+    });
+
+    this.container.event('metadata-shown', {
+      title: node.name || node.id,
+      content: node.content || '',
+      links: connectedNodeNames
+    });
   }
 
   /**
@@ -95,6 +106,8 @@ export default class MetadataDisplay {
       this.createElement('div', {class:'node-content', content:group.content}, metadata_container);
     }
     
+    const memberNames = [];
+    
     if(group.nodeIds && group.nodeIds.length > 0){
       const members_container = this.createElement('div', {class:'connected-nodes'}, metadata_container);
       this.createElement('h3', {content:'Group Members'}, members_container);
@@ -103,6 +116,8 @@ export default class MetadataDisplay {
         const memberNode = nodes.find(n => n.id === nodeId);
         
         if(memberNode){
+          memberNames.push(memberNode.name || memberNode.id);
+          
           const node_div = this.createElement('div', {
             class:'connected-node',
             content: memberNode.name || memberNode.id
@@ -114,5 +129,11 @@ export default class MetadataDisplay {
         }
       });
     }
+
+    this.container.event('metadata-shown', {
+      title: group.name || group.id,
+      content: group.content || '',
+      links: memberNames
+    });
   }
 }
