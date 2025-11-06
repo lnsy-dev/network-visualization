@@ -113,9 +113,7 @@ export default class GraphBuilder {
   }
 
   /**
-   * Calculates grid positions for nodes on a 2D x-z plane
-   * Nodes are grouped together first, then sorted by connection count
-   * Groups with most connections are placed closest to center
+   * Calculates grid positions for nodes with clean group layout
    * 
    * @returns {void}
    */
@@ -123,194 +121,49 @@ export default class GraphBuilder {
     if (this.nodes.length === 0) return;
 
     const gridSpacing = this.nodeSpacing;
-    const hitboxPercentage = 1.0; // Each grid cell is nodeSpacing * hitboxPercentage
-    
-    // Calculate connection count for each node
-    const connectionMap = new Map();
-    this.nodes.forEach(node => {
-      connectionMap.set(node.id, 0);
-    });
-    
-    this.links.forEach(link => {
-      connectionMap.set(link.source, (connectionMap.get(link.source) || 0) + 1);
-      connectionMap.set(link.target, (connectionMap.get(link.target) || 0) + 1);
-    });
-    
-    // Group nodes by their group membership
-    const groupedNodes = new Map(); // groupId -> array of nodes
-    const ungroupedNodes = [];
-    
-    this.nodes.forEach(node => {
-      if (node.groups.length > 0) {
-        // Use first group for primary grouping
-        const primaryGroup = node.groups[0];
-        if (!groupedNodes.has(primaryGroup)) {
-          groupedNodes.set(primaryGroup, []);
-        }
-        groupedNodes.get(primaryGroup).push(node);
-      } else {
-        ungroupedNodes.push(node);
-      }
-    });
-    
-    // Calculate total connections for each group
-    const groupConnectionCount = new Map();
-    groupedNodes.forEach((nodes, groupId) => {
-      const totalConnections = nodes.reduce((sum, node) => {
-        return sum + (connectionMap.get(node.id) || 0);
-      }, 0);
-      groupConnectionCount.set(groupId, totalConnections);
-    });
-    
-    // Sort groups by total connection count (most to least)
-    const sortedGroups = Array.from(groupedNodes.entries()).sort((a, b) => {
-      return groupConnectionCount.get(b[0]) - groupConnectionCount.get(a[0]);
-    });
-    
-    // Sort nodes within each group by connection count
-    sortedGroups.forEach(([groupId, nodes]) => {
-      nodes.sort((a, b) => {
-        return (connectionMap.get(b.id) || 0) - (connectionMap.get(a.id) || 0);
-      });
-    });
-    
-    // Sort ungrouped nodes by connection count
-    ungroupedNodes.sort((a, b) => {
-      return (connectionMap.get(b.id) || 0) - (connectionMap.get(a.id) || 0);
-    });
-    
-    // Build final sorted node list: groups first (by connection count), then ungrouped nodes
-    const sortedNodes = [];
-    sortedGroups.forEach(([groupId, nodes]) => {
-      sortedNodes.push(...nodes);
-    });
-    sortedNodes.push(...ungroupedNodes);
-    
-    // Track occupied grid positions
+    const groupSpacing = 3; // Spacing between different groups
     const occupiedPositions = new Set();
+    const groupBounds = new Map();
     
     /**
-     * Converts grid coordinates to position key
-     * 
-     * @param {number} gridX - Grid X coordinate
-     * @param {number} gridY - Grid Y coordinate
-     * @returns {string} Position key
-     */
-    const getPositionKey = (gridX, gridY) => `${gridX},${gridY}`;
-    
-    /**
-     * Checks if a grid position is available
-     * 
-     * @param {number} gridX - Grid X coordinate
-     * @param {number} gridY - Grid Y coordinate
-     * @returns {boolean} True if position is available
-     */
-    const isPositionAvailable = (gridX, gridY) => {
-      return !occupiedPositions.has(getPositionKey(gridX, gridY));
-    };
-    
-    /**
-     * Marks a grid position as occupied and assigns coordinates to node
-     * 
-     * @param {Object} node - Node object
-     * @param {number} gridX - Grid X coordinate
-     * @param {number} gridY - Grid Y coordinate (mapped to Z axis)
-     * @returns {void}
+     * Place a node at grid coordinates
      */
     const placeNode = (node, gridX, gridY) => {
-      occupiedPositions.add(getPositionKey(gridX, gridY));
+      occupiedPositions.add(`${gridX},${gridY}`);
       node.x = gridX * gridSpacing;
-      node.y = 0; // Nodes on x-z plane
+      node.y = 0;
       node.z = gridY * gridSpacing;
       node.gridX = gridX;
       node.gridY = gridY;
     };
     
     /**
-     * Finds the nearest available position starting from a given location
-     * 
-     * @param {number} startX - Starting grid X coordinate
-     * @param {number} startY - Starting grid Y coordinate
-     * @returns {Object} Object with x and y grid coordinates
+     * Check if position is available and respects group bounds
      */
-    const findNearestAvailablePosition = (startX, startY) => {
-      // Check the starting position first
-      if (isPositionAvailable(startX, startY)) {
-        return { x: startX, y: startY };
-      }
+    const canPlaceAt = (gridX, gridY, groupId) => {
+      const key = `${gridX},${gridY}`;
+      if (occupiedPositions.has(key)) return false;
       
-      // Spiral outward to find nearest available position
-      for (let radius = 1; radius < 100; radius++) {
-        for (let dx = -radius; dx <= radius; dx++) {
-          for (let dy = -radius; dy <= radius; dy++) {
-            // Only check positions on the current radius ring
-            if (Math.abs(dx) === radius || Math.abs(dy) === radius) {
-              const checkX = startX + dx;
-              const checkY = startY + dy;
-              if (isPositionAvailable(checkX, checkY)) {
-                return { x: checkX, y: checkY };
-              }
-            }
-          }
-        }
-      }
-      
-      // Fallback (should never reach here)
-      return { x: startX, y: startY };
-    };
-    
-    // Build adjacency list for quick neighbor lookup
-    const adjacencyList = new Map();
-    this.nodes.forEach(node => {
-      adjacencyList.set(node.id, []);
-    });
-    this.links.forEach(link => {
-      adjacencyList.get(link.source).push(link.target);
-      adjacencyList.get(link.target).push(link.source);
-    });
-    
-    // Track which nodes have been placed and their group membership
-    const placedNodes = new Set();
-    const groupBounds = new Map(); // Track bounds for each group
-    const groupSpacing = 3; // Minimum spacing between groups in grid units
-    
-    /**
-     * Checks if a position is far enough from other groups' boundaries
-     * 
-     * @param {number} gridX - Grid X coordinate
-     * @param {number} gridY - Grid Y coordinate
-     * @param {string} currentGroupId - The group ID being placed
-     * @returns {boolean} True if position respects group spacing
-     */
-    const respectsGroupSpacing = (gridX, gridY, currentGroupId) => {
-      for (const [groupId, bounds] of groupBounds.entries()) {
-        if (groupId === currentGroupId) continue;
+      // Check if position conflicts with other group bounds
+      for (const [otherGroupId, bounds] of groupBounds.entries()) {
+        if (otherGroupId === groupId) continue;
         
-        // Check if position is within spacing distance of this group's bounds
+        // No nodes allowed in other group's territory
         if (gridX >= bounds.minX - groupSpacing && gridX <= bounds.maxX + groupSpacing &&
             gridY >= bounds.minY - groupSpacing && gridY <= bounds.maxY + groupSpacing) {
           return false;
         }
       }
+      
       return true;
     };
     
     /**
-     * Updates the bounds for a group
-     * 
-     * @param {string} groupId - The group ID
-     * @param {number} gridX - Grid X coordinate
-     * @param {number} gridY - Grid Y coordinate
-     * @returns {void}
+     * Update group bounds
      */
-    const updateGroupBounds = (groupId, gridX, gridY) => {
+    const updateBounds = (groupId, gridX, gridY) => {
       if (!groupBounds.has(groupId)) {
-        groupBounds.set(groupId, {
-          minX: gridX,
-          maxX: gridX,
-          minY: gridY,
-          maxY: gridY
-        });
+        groupBounds.set(groupId, { minX: gridX, maxX: gridX, minY: gridY, maxY: gridY });
       } else {
         const bounds = groupBounds.get(groupId);
         bounds.minX = Math.min(bounds.minX, gridX);
@@ -320,203 +173,110 @@ export default class GraphBuilder {
       }
     };
     
-    // Place groups one at a time, keeping members clustered
-    let isFirstGroup = true;
-    
-    sortedGroups.forEach(([groupId, nodes]) => {
-      if (nodes.length === 0) return;
+    /**
+     * Find nearest available position
+     */
+    const findPosition = (startX, startY, groupId) => {
+      if (canPlaceAt(startX, startY, groupId)) return { x: startX, y: startY };
       
-      // Place first node of the group
-      const firstNode = nodes[0];
-      
-      if (isFirstGroup) {
-        // First group starts at center
-        placeNode(firstNode, 0, 0);
-        updateGroupBounds(groupId, 0, 0);
-        isFirstGroup = false;
-      } else {
-        // Subsequent groups: find position near center but respecting group spacing
-        let foundPosition = false;
-        for (let radius = groupSpacing + 1; radius < 100 && !foundPosition; radius++) {
-          for (let dx = -radius; dx <= radius && !foundPosition; dx++) {
-            for (let dy = -radius; dy <= radius && !foundPosition; dy++) {
-              if (Math.abs(dx) === radius || Math.abs(dy) === radius) {
-                const checkX = dx;
-                const checkY = dy;
-                if (isPositionAvailable(checkX, checkY) && respectsGroupSpacing(checkX, checkY, groupId)) {
-                  placeNode(firstNode, checkX, checkY);
-                  updateGroupBounds(groupId, checkX, checkY);
-                  foundPosition = true;
-                }
+      for (let radius = 1; radius < 50; radius++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          for (let dy = -radius; dy <= radius; dy++) {
+            if (Math.abs(dx) === radius || Math.abs(dy) === radius) {
+              const x = startX + dx;
+              const y = startY + dy;
+              if (canPlaceAt(x, y, groupId)) {
+                return { x, y };
               }
             }
           }
-        }
-        
-        if (!foundPosition) {
-          // Fallback: just find any available position far from center
-          const nearestPos = findNearestAvailablePosition(0, 0);
-          placeNode(firstNode, nearestPos.x, nearestPos.y);
-          updateGroupBounds(groupId, nearestPos.x, nearestPos.y);
         }
       }
-      
-      placedNodes.add(firstNode.id);
-      
-      // Place remaining nodes in the group close to group members
-      for (let i = 1; i < nodes.length; i++) {
-        const node = nodes[i];
-        let positioned = false;
-        
-        // Try to place near other group members first
-        for (let j = 0; j < i; j++) {
-          const groupMember = nodes[j];
-          
-          // Try positions around the group member
-          const offsets = [
-            { dx: 1, dy: 0 },   // right
-            { dx: -1, dy: 0 },  // left
-            { dx: 0, dy: 1 },   // up
-            { dx: 0, dy: -1 },  // down
-            { dx: 1, dy: 1 },   // diagonal
-            { dx: -1, dy: 1 },
-            { dx: 1, dy: -1 },
-            { dx: -1, dy: -1 },
-          ];
-          
-          for (const offset of offsets) {
-            const gridX = groupMember.gridX + offset.dx;
-            const gridY = groupMember.gridY + offset.dy;
-            
-            if (isPositionAvailable(gridX, gridY) && respectsGroupSpacing(gridX, gridY, groupId)) {
-              placeNode(node, gridX, gridY);
-              updateGroupBounds(groupId, gridX, gridY);
-              placedNodes.add(node.id);
-              positioned = true;
-              break;
-            }
-          }
-          
-          if (positioned) break;
+      return { x: startX, y: startY }; // Fallback
+    };
+    
+    // Organize nodes by groups
+    const groupedNodes = new Map();
+    const ungroupedNodes = [];
+    
+    this.nodes.forEach(node => {
+      if (node.groups.length > 0) {
+        const groupId = node.groups[0]; // Use first group
+        if (!groupedNodes.has(groupId)) {
+          groupedNodes.set(groupId, []);
         }
-        
-        // If no adjacent position found, place near first group member
-        if (!positioned) {
-          // Search for nearest position that respects group spacing
-          let foundPos = false;
-          for (let radius = 1; radius < 50 && !foundPos; radius++) {
-            for (let dx = -radius; dx <= radius && !foundPos; dx++) {
-              for (let dy = -radius; dy <= radius && !foundPos; dy++) {
-                if (Math.abs(dx) === radius || Math.abs(dy) === radius) {
-                  const checkX = firstNode.gridX + dx;
-                  const checkY = firstNode.gridY + dy;
-                  if (isPositionAvailable(checkX, checkY) && respectsGroupSpacing(checkX, checkY, groupId)) {
-                    placeNode(node, checkX, checkY);
-                    updateGroupBounds(groupId, checkX, checkY);
-                    foundPos = true;
-                  }
-                }
-              }
-            }
-          }
-          
-          if (!foundPos) {
-            // Absolute fallback
-            const nearestPos = findNearestAvailablePosition(firstNode.gridX, firstNode.gridY);
-            placeNode(node, nearestPos.x, nearestPos.y);
-            updateGroupBounds(groupId, nearestPos.x, nearestPos.y);
-          }
-          
-          placedNodes.add(node.id);
-        }
+        groupedNodes.get(groupId).push(node);
+      } else {
+        ungroupedNodes.push(node);
       }
     });
     
-    // Place ungrouped nodes (avoiding group bounds)
-    ungroupedNodes.forEach(node => {
-      if (placedNodes.size === 0) {
-        // First node goes to center
-        placeNode(node, 0, 0);
-      } else {
-        // Try to place near connected nodes first
-        const neighbors = adjacencyList.get(node.id) || [];
-        let positioned = false;
+    // Place groups
+    let groupIndex = 0;
+    const groupStartPositions = [
+      [0, 0],   // Center
+      [5, 0],   // Right
+      [-5, 0],  // Left  
+      [0, 5],   // Up
+      [0, -5],  // Down
+      [5, 5],   // Top-right
+      [-5, 5],  // Top-left
+      [5, -5],  // Bottom-right
+      [-5, -5]  // Bottom-left
+    ];
+    
+    for (const [groupId, nodes] of groupedNodes.entries()) {
+      if (nodes.length === 0) continue;
+      
+      // Get starting position for this group
+      const [startX, startY] = groupStartPositions[groupIndex % groupStartPositions.length];
+      groupIndex++;
+      
+      // Place first node of group
+      const pos = findPosition(startX, startY, groupId);
+      placeNode(nodes[0], pos.x, pos.y);
+      updateBounds(groupId, pos.x, pos.y);
+      
+      // Place remaining nodes adjacent to group members
+      const adjacentOffsets = [
+        [1, 0], [-1, 0], [0, 1], [0, -1],
+        [1, 1], [-1, 1], [1, -1], [-1, -1]
+      ];
+      
+      for (let i = 1; i < nodes.length; i++) {
+        const node = nodes[i];
+        let placed = false;
         
-        for (const neighborId of neighbors) {
-          if (placedNodes.has(neighborId)) {
-            const neighbor = this.nodes.find(n => n.id === neighborId);
+        // Try to place next to existing group members
+        for (let j = 0; j < i && !placed; j++) {
+          const existingNode = nodes[j];
+          
+          for (const [dx, dy] of adjacentOffsets) {
+            const x = existingNode.gridX + dx;
+            const y = existingNode.gridY + dy;
             
-            // Try positions around the neighbor
-            const offsets = [
-              { dx: 1, dy: 0 },   // right
-              { dx: -1, dy: 0 },  // left
-              { dx: 0, dy: 1 },   // up
-              { dx: 0, dy: -1 },  // down
-              { dx: 1, dy: 1 },   // diagonal
-              { dx: -1, dy: 1 },
-              { dx: 1, dy: -1 },
-              { dx: -1, dy: -1 },
-            ];
-            
-            for (const offset of offsets) {
-              const gridX = neighbor.gridX + offset.dx;
-              const gridY = neighbor.gridY + offset.dy;
-              
-              // Ungrouped nodes use null as groupId to respect all group bounds
-              if (isPositionAvailable(gridX, gridY) && respectsGroupSpacing(gridX, gridY, null)) {
-                placeNode(node, gridX, gridY);
-                positioned = true;
-                break;
-              }
+            if (canPlaceAt(x, y, groupId)) {
+              placeNode(node, x, y);
+              updateBounds(groupId, x, y);
+              placed = true;
+              break;
             }
-            
-            if (positioned) break;
-            
-            // If no adjacent position available, find nearest that respects group spacing
-            let foundPos = false;
-            for (let radius = 1; radius < 100 && !foundPos; radius++) {
-              for (let dx = -radius; dx <= radius && !foundPos; dx++) {
-                for (let dy = -radius; dy <= radius && !foundPos; dy++) {
-                  if (Math.abs(dx) === radius || Math.abs(dy) === radius) {
-                    const checkX = neighbor.gridX + dx;
-                    const checkY = neighbor.gridY + dy;
-                    if (isPositionAvailable(checkX, checkY) && respectsGroupSpacing(checkX, checkY, null)) {
-                      placeNode(node, checkX, checkY);
-                      foundPos = true;
-                    }
-                  }
-                }
-              }
-            }
-            
-            if (foundPos) {
-              positioned = true;
-            }
-            break;
           }
         }
         
-        // If no connections to placed nodes, place near center but respect group spacing
-        if (!positioned) {
-          let foundPos = false;
-          for (let radius = 0; radius < 100 && !foundPos; radius++) {
-            for (let dx = -radius; dx <= radius && !foundPos; dx++) {
-              for (let dy = -radius; dy <= radius && !foundPos; dy++) {
-                if (Math.abs(dx) === radius || Math.abs(dy) === radius || radius === 0) {
-                  const checkX = dx;
-                  const checkY = dy;
-                  if (isPositionAvailable(checkX, checkY) && respectsGroupSpacing(checkX, checkY, null)) {
-                    placeNode(node, checkX, checkY);
-                    foundPos = true;
-                  }
-                }
-              }
-            }
-          }
+        // If couldn't place adjacent, find nearest position
+        if (!placed) {
+          const pos = findPosition(nodes[0].gridX, nodes[0].gridY, groupId);
+          placeNode(node, pos.x, pos.y);
+          updateBounds(groupId, pos.x, pos.y);
         }
       }
-      
-      placedNodes.add(node.id);
+    }
+    
+    // Place ungrouped nodes
+    ungroupedNodes.forEach(node => {
+      const pos = findPosition(0, 0, null);
+      placeNode(node, pos.x, pos.y);
     });
   }
 
