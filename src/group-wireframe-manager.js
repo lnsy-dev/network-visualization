@@ -30,7 +30,7 @@ export default class GroupWireframeManager {
     groups.forEach(group => {
       const geometry = new THREE.BoxGeometry(1, 1, 1);
       const material = new THREE.LineBasicMaterial({ 
-        color: 0x888888, 
+        color: group.color || 0x888888, 
         linewidth: 1,
         transparent: true,
         opacity: 0.5
@@ -453,7 +453,7 @@ export default class GroupWireframeManager {
       
       // Create line segments
       const material = new THREE.LineBasicMaterial({ 
-        color: 0x888888, 
+        color: group.color || 0x888888, 
         linewidth: 1,
         transparent: true,
         opacity: 0.5

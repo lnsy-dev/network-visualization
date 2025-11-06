@@ -112,7 +112,8 @@ export default class InteractionHandler {
           if (clickedGroup) {
             const groupSelection = {
               ...clickedGroup.group,
-              wireframe: clickedGroup.mesh
+              wireframe: clickedGroup.mesh,
+              originalColor: clickedGroup.group.color || 0x888888
             };
             
             if (this.selectedObject && this.selectedObject.id === groupSelection.id) {
@@ -148,7 +149,7 @@ export default class InteractionHandler {
           label.classList.remove('selected');
         }
       } else if (this.selectedObject.wireframe) {
-        this.selectedObject.wireframe.material.color.set(0x888888);
+        this.selectedObject.wireframe.material.color.set(this.selectedObject.originalColor || 0x888888);
         this.selectedObject.wireframe.material.opacity = 0.5;
         this.selectedObject.wireframe.material.needsUpdate = true;
       }

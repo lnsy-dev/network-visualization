@@ -85,6 +85,7 @@ export default class GraphBuilder {
       return {
         id: el.getAttribute('id'),
         name: el.getAttribute('name'),
+        color: el.getAttribute('color') || '#888888',
         nodeIds: nodeIds,
         content: el.innerHTML,
         el: el,
