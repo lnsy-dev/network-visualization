@@ -4,14 +4,16 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title></title>
-	<script type="module" src="/network-visualization.min.js"></script>
 	<style>
+		
 		:root {
-			--foreground-color: black;
-			--background-color: white;
+		--foreground-color: #2d2d2d;
+		--background-color: #d3d6cb;
+		
 		}
-
 		body {
+			background-color: var(--background-color);
+			color: var(--foreground-color);
 			display: flex;
 			align-content: center;
 			justify-items: center;
@@ -31,10 +33,13 @@
 			background-color: rgba(255,255,255,0.7);
 		}
 
-		.selected {
+		network-visualization .node-label.selected {
 			color: red;
 		}
 	</style>
+
+		<script type="module" src="/network-visualization.min.js"></script>
+
 </head>
 <body>
 
@@ -109,9 +114,6 @@
 		<p>React, Vue, HTMLx, Next.js, whatever. I can pick the right size technology for your company.  I don't engage in upsells or resume-driven-development, and I can give you an honest assessment of the strengths and weaknesses of each choice.</p>
 	</network-node>
 	
-	<network-node id="14" name="Mapping" wireframe="true" shape="cube">
-		<p>Another technology I've had decades in experience in. From ArcGIS to OpenStreetMaps, I can help your company pick the right size mapping solution.</p>
-	</network-node>
 	
 	<network-node id="15" name="ArcGIS" wireframe="true" shape="cube">
 		<h1>ArcGIS</h1>
@@ -184,8 +186,8 @@
 	<network-edge source="12" target="22"></network-edge>
 	<network-edge source="12" target="3"></network-edge>
 
-	<network-group name="Framework Du Jour" node-ids="0,1,2,3,4">
-		<h1>Hello World</h1>
+	<network-group name="Mapping" node-ids="15,16,17,18,19,20">
+				<p>Another technology I've had decades in experience in. From ArcGIS to OpenStreetMaps, I can help your company pick the right size mapping solution.</p>
 	</network-group>
 </network-visualization>
 </body>

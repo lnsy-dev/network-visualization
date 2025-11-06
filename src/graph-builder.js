@@ -344,8 +344,6 @@ export default class GraphBuilder {
         const labelDiv = document.createElement('div');
         labelDiv.className = 'node-label';
         labelDiv.textContent = node.name;
-        labelDiv.style.color = this.foregroundColor;
-        labelDiv.style.background = this.backgroundColor;
         labelDiv.style.pointerEvents = 'auto'; // Make label clickable
         labelDiv.style.cursor = 'pointer';
         
