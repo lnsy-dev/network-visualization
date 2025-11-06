@@ -155,9 +155,87 @@ The inner HTML can contain metadata about the relationship.
 </network-edge>
 ```
 
+### `<network-group>`
+
+Creates a wireframe boundary around a collection of related nodes. Groups are visualized as semi-transparent boxes that dynamically resize to contain their member nodes.
+
+#### Attributes
+
+- **`name`** (required): Display name for the group
+- **`node-ids`** (required): Comma-separated list of node IDs to include in the group
+
+#### Content
+
+The inner HTML can contain descriptive information about the group that will be displayed when the group is selected.
+
+```html
+<network-group name="Engineering Team" node-ids="alice,bob,charlie">
+  <h3>Engineering Team</h3>
+  <p>Core development team responsible for product features</p>
+  <ul>
+    <li>Full-stack development</li>
+    <li>Code reviews</li>
+    <li>Architecture decisions</li>
+  </ul>
+</network-group>
+```
+
+#### Behavior
+
+- Groups automatically calculate their position and size based on member node positions
+- A padding of 20 units is added around the group's nodes
+- Groups update dynamically as the force simulation adjusts node positions
+- Clicking anywhere inside a group's wireframe will display the group's metadata
+
 ## Examples
 
-### Example 1: Simple Social Network
+### Example 1: Team Organization with Groups
+
+```html
+<network-visualization scale="1.3">
+  <!-- Frontend Team Members -->
+  <network-node id="alice" name="Alice" wireframe="true" shape="sphere">
+    <h2>Alice</h2>
+    <p>Senior Frontend Developer</p>
+  </network-node>
+  
+  <network-node id="bob" name="Bob" wireframe="true" shape="sphere">
+    <h2>Bob</h2>
+    <p>Frontend Developer</p>
+  </network-node>
+  
+  <!-- Backend Team Members -->
+  <network-node id="dave" name="Dave" wireframe="true" shape="cube">
+    <h2>Dave</h2>
+    <p>Backend Lead</p>
+  </network-node>
+  
+  <network-node id="eve" name="Eve" wireframe="true" shape="cube">
+    <h2>Eve</h2>
+    <p>Backend Developer</p>
+  </network-node>
+  
+  <!-- Edges -->
+  <network-edge source="alice" target="bob" name="collaborates"></network-edge>
+  <network-edge source="dave" target="eve" name="mentors"></network-edge>
+  <network-edge source="alice" target="dave" name="API integration"></network-edge>
+  
+  <!-- Groups -->
+  <network-group name="Frontend Team" node-ids="alice,bob">
+    <h3>Frontend Team</h3>
+    <p>Responsible for user interface development</p>
+  </network-group>
+  
+  <network-group name="Backend Team" node-ids="dave,eve">
+    <h3>Backend Team</h3>
+    <p>Handles server-side logic and databases</p>
+  </network-group>
+</network-visualization>
+```
+
+[View full groups demo](./groups-demo.html)
+
+### Example 2: Simple Social Network
 
 ```html
 <network-visualization scale="1.2">
@@ -189,7 +267,7 @@ The inner HTML can contain metadata about the relationship.
 </network-visualization>
 </div>
 
-### Example 2: Knowledge Graph
+### Example 3: Knowledge Graph
 
 ```html
 <network-visualization>
@@ -248,7 +326,7 @@ The inner HTML can contain metadata about the relationship.
 
 </div>
 
-### Example 3: Styled with CSS Variables
+### Example 4: Styled with CSS Variables
 
 ```html
 <style>

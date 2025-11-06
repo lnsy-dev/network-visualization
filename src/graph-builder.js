@@ -79,7 +79,7 @@ export default class GraphBuilder {
       });
 
     this.groups = groupElements.map(el => {
-      const nodesAttr = el.getAttribute('nodes') || '';
+      const nodesAttr = el.getAttribute('node-ids') || '';
       const nodeIds = nodesAttr.split(',').map(id => id.trim()).filter(id => id.length > 0);
       
       return {
@@ -350,7 +350,7 @@ export default class GraphBuilder {
         labelDiv.style.cursor = 'pointer';
         
         const label = new CSS2DObject(labelDiv);
-        label.position.set(0, 10, 0);
+        label.position.set(0, 15, 0);
         label.element.dataset.nodeId = node.id; // Store node ID for lookup
         group.add(label);
       }

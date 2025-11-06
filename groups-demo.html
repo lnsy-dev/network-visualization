@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Network Groups Demo</title>
+	<meta charset="utf-8">
+    <script src="/network-visualization.min.js" type="module"></script>
+    <style>
+
+network-visualization {
+display: block;
+--background-color: pink;
+
+    width: 400px;
+height:400px;
+color: white;
+
+
+}
+</style>
+</head>
+<body>
+	<h1>Network Groups Demo</h1>
+	<p class="description">
+		Groups create wireframe boundaries around related nodes. Click nodes to see their relationships.
+	</p>
+	
+	<network-visualization scale="1.4">
+		<!-- Frontend Team -->
+		<network-node id="alice" name="Alice" wireframe="true" shape="sphere">
+			<h2>Alice</h2>
+			<p>Senior Frontend Developer</p>
+			<p>Specializes in React and Vue</p>
+		</network-node>
+		
+		<network-node id="bob" name="Bob" wireframe="true" shape="sphere">
+			<h2>Bob</h2>
+			<p>Frontend Developer</p>
+			<p>Expert in CSS and animations</p>
+		</network-node>
+		
+		<network-node id="carol" name="Carol" wireframe="true" shape="sphere">
+			<h2>Carol</h2>
+			<p>UI/UX Designer</p>
+			<p>Creates beautiful interfaces</p>
+		</network-node>
+		
+		<!-- Backend Team -->
+		<network-node id="dave" name="Dave" wireframe="true" shape="cube">
+			<h2>Dave</h2>
+			<p>Backend Lead</p>
+			<p>Node.js and Python expert</p>
+		</network-node>
+		
+		<network-node id="eve" name="Eve" wireframe="true" shape="cube">
+			<h2>Eve</h2>
+			<p>Backend Developer</p>
+			<p>Database optimization specialist</p>
+		</network-node>
+		
+		<network-node id="frank" name="Frank" wireframe="true" shape="cube">
+			<h2>Frank</h2>
+			<p>DevOps Engineer</p>
+			<p>CI/CD and infrastructure</p>
+		</network-node>
+		
+		<!-- Product Team -->
+		<network-node id="grace" name="Grace" wireframe="true" shape="torus">
+			<h2>Grace</h2>
+			<p>Product Manager</p>
+			<p>Drives product vision</p>
+		</network-node>
+		
+		<network-node id="henry" name="Henry" wireframe="true" shape="torus">
+			<h2>Henry</h2>
+			<p>Product Analyst</p>
+			<p>Data-driven decisions</p>
+		</network-node>
+		
+		<!-- Connections within Frontend Team -->
+		<network-edge source="alice" target="bob" name="collaborates"></network-edge>
+		<network-edge source="bob" target="carol" name="designs with"></network-edge>
+		<network-edge source="carol" target="alice" name="reviews"></network-edge>
+		
+		<!-- Connections within Backend Team -->
+		<network-edge source="dave" target="eve" name="mentors"></network-edge>
+		<network-edge source="eve" target="frank" name="deploys with"></network-edge>
+		<network-edge source="frank" target="dave" name="reports to"></network-edge>
+		
+		<!-- Connections within Product Team -->
+		<network-edge source="grace" target="henry" name="works with"></network-edge>
+		
+		<!-- Cross-team connections -->
+		<network-edge source="grace" target="alice" name="defines features"></network-edge>
+		<network-edge source="grace" target="dave" name="plans with"></network-edge>
+		<network-edge source="alice" target="dave" name="API integration"></network-edge>
+		<network-edge source="henry" target="frank" name="analytics data"></network-edge>
+		
+		<!-- Define Groups -->
+		<network-group name="Frontend Team" node-ids="alice,bob,carol">
+			<h3>Frontend Team</h3>
+			<p>Responsible for user interface and client-side functionality</p>
+			<ul>
+				<li>React/Vue development</li>
+				<li>Responsive design</li>
+				<li>UI/UX implementation</li>
+			</ul>
+		</network-group>
+		
+		<network-group name="Backend Team" node-ids="dave,eve,frank">
+			<h3>Backend Team</h3>
+			<p>Handles server-side logic, databases, and infrastructure</p>
+			<ul>
+				<li>API development</li>
+				<li>Database management</li>
+				<li>DevOps and deployment</li>
+			</ul>
+		</network-group>
+		
+		<network-group name="Product Team" node-ids="grace,henry">
+			<h3>Product Team</h3>
+			<p>Drives product strategy and analyzes user data</p>
+			<ul>
+				<li>Product roadmap</li>
+				<li>User research</li>
+				<li>Analytics and metrics</li>
+			</ul>
+		</network-group>
+	</network-visualization>
+	
+	<script type="module" src="/src/network-visualization.js"></script>
+</body>
+</html>
