@@ -350,7 +350,8 @@ export default class GraphBuilder {
         labelDiv.style.cursor = 'pointer';
         
         const label = new CSS2DObject(labelDiv);
-        label.position.set(0, 15, 0);
+        // Position label above the node based on geometry height
+        label.position.set(0, -10, 0);
         label.element.dataset.nodeId = node.id; // Store node ID for lookup
         group.add(label);
       }
