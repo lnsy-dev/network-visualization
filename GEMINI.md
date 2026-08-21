@@ -1,6 +1,6 @@
 # Project Structure
 
-This is a vanilla JavaScript, CSS, and HTML project that uses `rspack` as a builder.
+This is a vanilla JavaScript, CSS, and HTML project that uses `webpack` as a builder.
 
 Do not run a dev server. Do not run `npm start` unless specifically asked to.
 
@@ -15,7 +15,7 @@ Do not run a dev server. Do not run `npm start` unless specifically asked to.
 *   `package-lock.json`: Records the exact version of each installed package.
 *   `package.json`: Contains metadata about the project and its dependencies.
 *   `README.md`: General information about the project.
-*   `rspack.config.js`: Configuration file for the `rspack` builder.
+*   `webpack.config.js`: Configuration file for the `webpack` builder.
 
 ## Directories
 

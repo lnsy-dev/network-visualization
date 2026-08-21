@@ -138,3 +138,14 @@ out
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Webpack / build output
+dist/
+
+# Playwright test output
+test-results/
+playwright-report/
+
+# Vitest / Stryker reports
+reports/
+

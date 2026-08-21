@@ -4,16 +4,19 @@ network-visualization {
   background-color: var(--background-color);
   color: var(--foreground-color);
   position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
 }
 
-network-visualization network-node {
-  display: none;
+/* Keep the default viewport cap low-specificity so consumers can override it. */
+:where(network-visualization) {
+  max-height: 100vh;
 }
 
-network-visualization network-edge {
-  display: none;
-}
-
+network-visualization network-node,
+network-visualization network-edge,
 network-visualization network-group {
   display: none;
 }
@@ -21,4 +24,75 @@ network-visualization network-group {
 network-visualization .node-label {
   background-color: var(--background-color);
   color: var(--foreground-color);
+  /* Push the label down from the node so it never sits on top of the mesh,
+     even when the node group is scaled by the scale attribute. */
+  margin-top: 0.5em;
+}
+
+network-visualization .network-hud {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 20ch;
+  max-width: 33%;
+  margin-left: var(--rhythm-md, 1rem);
+  padding: 1rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 10;
+  pointer-events: auto;
+  font-style: italic;
+  color: #666;
+  line-height: 1.3;
+}
+
+network-visualization .network-hud h2,
+network-visualization .network-hud h3 {
+  font-style: normal;
+  color: var(--foreground-color);
+}
+
+network-visualization .network-hud .node-content {
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+network-visualization .network-hud .node-content > *:first-child {
+  margin-top: 0;
+}
+
+network-visualization .network-hud .connected-nodes {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-rule, rgba(0, 0, 0, 0.12));
+}
+
+network-visualization .network-hud .connected-nodes h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+network-visualization .network-hud .connected-nodes ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+network-visualization .network-hud .connected-nodes li {
+  margin-bottom: 0.25rem;
+}
+
+network-visualization .network-hud a.connected-node {
+  color: var(--highlight-color, currentColor);
+  text-decoration: none;
+}
+
+network-visualization .network-hud a.connected-node:hover {
+  text-decoration: underline;
+}
+
+network-visualization .network-hud .empty-state {
+  color: #666;
+  font-style: italic;
 }

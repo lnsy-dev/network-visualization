@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { isDrag } from './interaction-logic.js';
 
 /**
  * InteractionHandler
@@ -51,9 +52,12 @@ export default class InteractionHandler {
     
     this.rendererElement.addEventListener('mousemove', (event) => {
       if (this.mouseDownPos.x !== undefined) {
-        const dx = event.clientX - this.mouseDownPos.x;
-        const dy = event.clientY - this.mouseDownPos.y;
-        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        if (
+          isDrag(
+            { x: this.mouseDownPos.x, y: this.mouseDownPos.y },
+            { x: event.clientX, y: event.clientY }
+          )
+        ) {
           this.isDragging = true;
         }
       }
@@ -167,12 +171,12 @@ export default class InteractionHandler {
           label.classList.add('selected');
         }
         
-        // Animate scene to center selected node at origin
+        // Animate camera to focus selected node while keeping every node visible
         if (this.sceneManager && newSelection.x !== undefined) {
           const targetPosition = new THREE.Vector3(newSelection.x, newSelection.y, newSelection.z);
-          this.sceneManager.animateToNode(targetPosition);
+          this.sceneManager.animateCameraToNode(targetPosition);
         } else {
-          console.log('Cannot center node:', { hasSceneManager: !!this.sceneManager, hasX: newSelection.x !== undefined });
+          console.log('Cannot focus node:', { hasSceneManager: !!this.sceneManager, hasX: newSelection.x !== undefined });
         }
       } else if (newSelection.wireframe) {
         newSelection.wireframe.material.color.set(0x00ff00);
@@ -180,9 +184,9 @@ export default class InteractionHandler {
         newSelection.wireframe.material.needsUpdate = true;
       }
     } else {
-      // When deselecting, reset scene to original position
+      // When deselecting, reset camera to show the entire scene
       if (this.sceneManager) {
-        this.sceneManager.resetScenePosition();
+        this.sceneManager.animateCameraToFitScene();
       }
     }
 

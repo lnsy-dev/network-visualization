@@ -1,12 +1,19 @@
 node_modules
-rspack.config.js
-.env.example
-GEMINI.md
-LICENSE
-README.md
+.env
+.env.*
+!.env.example
+webpack.config.js
+scripts/
+tests/
+playwright.config.js
+vitest.config.js
+stryker.config.js
 package-lock.json
 prompts
 
 .git
 .gitignore
 WARP.md
+GEMINI.md
+AGENTS.md
+TODO.md

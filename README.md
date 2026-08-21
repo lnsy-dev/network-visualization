@@ -1,16 +1,3 @@
-<div>
-  <network-visualization scale="1.6">
-  <network-node id="2" name="Component" shape="cube" wireframe="true">Component</network-node>
-
-  <network-node id="1" name="Visualization" shape="sphere" wireframe="true">Visualization</network-node>
-    <network-node id="0" name="Network" shape="torus" wireframe="true">Network</network-node>
-
-  <network-edge source="0" target="1"></network-edge>
-  <network-edge source="1" target="2"></network-edge>
-</network-visualization>
-</div>
-
-
 # Network Visualization Component
 
 A 3D network visualization component built with Three.js that displays interactive force-directed graphs. Create beautiful, navigable network diagrams using simple HTML custom elements.
@@ -426,7 +413,6 @@ PORT=8080
 ### Built With
 
 - **Three.js**: 3D rendering engine
-- **three-forcegraph**: Force-directed graph layout
 - **dataroom-js**: Custom element base class
 - **OrbitControls**: Camera navigation
 - **CSS2DRenderer**: HTML label rendering
@@ -441,4 +427,4 @@ Requires modern browsers with:
 
 ## License
 
-MIT
+Unlicense (public domain). See [LICENSE](./LICENSE) for details.

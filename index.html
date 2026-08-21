@@ -1,44 +1,34 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Network Visualization</title>
-  <!-- <script type="module" src="/network-visualization.min.js"></script> -->
-  <script type="module" src="https://unpkg.com/@lnsy/mark-down/dist/mark-down.min.js"></script>
-
-  <script type="module" src="https://unpkg.com/@lnsy/network-visualization/dist/network-visualization.min.js"></script>
-    <script src="https://lnsy-dev.github.io/simple-github-icon/github-icon.min.js"></script>
-<github-icon dark href="https://github.com/lnsy-dev/mark-down"></github-icon>
+  <title>Network Visualization Demo</title>
+  <script src="https://lnsy-dev.github.io/simple-github-icon/github-icon.min.js"></script>
 
   <style>
-
-
-
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&display=swap');
-
 
     :root {
       --background-color: #dddbc7;
       --foreground-color: #000;
       --highlight-color: #ff9900;
       --secondary-highlight-color: #ff9900;
-      --error-color: #ff0000;
-      --warning-color: #ffa500;
-      --confirm-color: #008000;
-      --h1-font-size: 200%;
-      --h2-font-size: 180%;
-      --h3-font-size: 150%;
+      --panel-background: rgba(255, 255, 255, 0.85);
+    }
+
+    * {
+      box-sizing: border-box;
     }
 
     body {
       background-color: var(--background-color);
       color: var(--foreground-color);
-      margin: auto;
-      max-width: 40em;
+      margin: 0;
+      padding: 1em;
       font-family: "Fira Code", monospace;
-  font-optical-sizing: auto;
-
+      font-optical-sizing: auto;
+      min-height: 100vh;
     }
 
     github-icon {
@@ -46,29 +36,129 @@
       right: 1em;
       top: 1em;
       height: 2em;
+      z-index: 100;
     }
 
-    .selected-node-metadata {
-      position: absolute;
-      left: 0px;
-      top: 0px;
-      max-width: 33%;
-      height: 100%;
+    .page {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 var(--rhythm-md, 1.5rem);
     }
 
-
-    .connected-node {
-      color: var(--highlight-color);
-      cursor: pointer;
+    header {
+      padding: 1.5em 0;
+      border-bottom: 2px solid var(--foreground-color);
+      margin-bottom: 1.5rem;
     }
 
+    header h1 {
+      margin: 0 0 0.25em 0;
+      font-size: 1.75rem;
+    }
 
+    header p {
+      margin: 0;
+      color: #333;
+      max-width: 40em;
+    }
+
+    network-visualization {
+      display: block;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background-color: var(--background-color);
+      color: var(--foreground-color);
+    }
+
+    .hint {
+      margin-top: 1rem;
+      padding: 0.75em 0;
+      font-size: 0.85rem;
+      pointer-events: none;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 0.5em;
+      }
+
+      header h1 {
+        font-size: 1.25rem;
+      }
+    }
   </style>
 </head>
 <body>
-  <main>
-    <mark-down src="README.md"></mark-down>
-  </main>
+  <github-icon dark href="https://github.com/DATAROOM-NETWORK/network-visualization"></github-icon>
 
+  <div class="page">
+    <header>
+      <h1>Network Visualization</h1>
+      <p>A 3D network graph built from plain HTML custom elements. Click a node or group to explore its metadata. Drag to rotate, Shift+scroll to zoom, scroll to pan the page.</p>
+    </header>
+
+    <network-visualization scale="1.2" labels-zoom-level="1.0">
+      <!-- Core concept nodes -->
+      <network-node id="nodes" name="Nodes" shape="sphere" wireframe="true">
+        <h3>Nodes</h3>
+        <p>Nodes are the building blocks of any network graph. Each <code>&lt;network-node&gt;</code> element becomes a 3D object with a label and optional metadata.</p>
+      </network-node>
+
+      <network-node id="edges" name="Edges" shape="cube" wireframe="true">
+        <h3>Edges</h3>
+        <p>Edges define relationships between nodes. Use the <code>source</code> and <code>target</code> attributes to connect two nodes.</p>
+      </network-node>
+
+      <network-node id="groups" name="Groups" shape="torus" wireframe="true">
+        <h3>Groups</h3>
+        <p>Groups wrap related nodes in a wireframe boundary. They automatically resize as the simulation moves their members.</p>
+      </network-node>
+
+      <!-- Feature nodes -->
+      <network-node id="shapes" name="Shapes" shape="pyramid" wireframe="true">
+        <h3>Shapes</h3>
+        <p>Choose from sphere, cube, torus, or pyramid geometries using the <code>shape</code> attribute.</p>
+      </network-node>
+
+      <network-node id="metadata" name="Metadata" shape="sphere" wireframe="true">
+        <h3>Metadata</h3>
+        <p>Any HTML content inside a node or edge is stored as metadata and can be displayed when the element is selected.</p>
+      </network-node>
+
+      <network-node id="events" name="Events" shape="cube" wireframe="true">
+        <h3>Events</h3>
+        <p>The component emits a <code>metadata-shown</code> custom event whenever a node or group is selected, making it easy to wire into your own UI.</p>
+      </network-node>
+
+      <network-node id="styling" name="Styling" shape="torus" wireframe="true">
+        <h3>Styling</h3>
+        <p>Colors and background are inherited from CSS. Use standard styles to theme the visualization to match your site.</p>
+      </network-node>
+
+      <!-- Connections between concepts and features -->
+      <network-edge source="nodes" target="edges" name="connect"></network-edge>
+      <network-edge source="edges" target="groups" name="organize"></network-edge>
+      <network-edge source="nodes" target="shapes" name="render"></network-edge>
+      <network-edge source="nodes" target="metadata" name="describe"></network-edge>
+      <network-edge source="nodes" target="events" name="trigger"></network-edge>
+      <network-edge source="edges" target="metadata" name="describe"></network-edge>
+      <network-edge source="groups" target="styling" name="theme"></network-edge>
+      <network-edge source="shapes" target="styling" name="theme"></network-edge>
+      <network-edge source="metadata" target="events" name="emit"></network-edge>
+
+      <!-- Groups -->
+      <network-group name="Core Concepts" node-ids="nodes,edges,groups">
+        <h3>Core Concepts</h3>
+        <p>The three primitives of every network graph: nodes, edges, and groups.</p>
+      </network-group>
+
+      <network-group name="Features" node-ids="shapes,metadata,events,styling">
+        <h3>Features</h3>
+        <p>Advanced capabilities that make the component flexible and easy to integrate.</p>
+      </network-group>
+    </network-visualization>
+
+    <p class="hint">Tip: click a connected node name to jump to it.</p>
+  </div>
 </body>
 </html>

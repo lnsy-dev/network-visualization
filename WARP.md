@@ -1,4 +1,4 @@
-This is a vanilla js, css and html project. It uses rspack to build the files. 
+This is a vanilla js, css and html project. It uses webpack to build the files. 
 
 
 It uses dataroom-js for all custom html elements. The code for dataroom-js looks like this: 
