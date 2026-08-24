@@ -199,7 +199,9 @@ test.describe('Network Visualization Demo Page', () => {
   });
 
   test('resizes the canvas when the window is resized', async ({ page }) => {
-    await page.setViewportSize({ width: 1600, height: 1200 });
+    // Start wide so the element sits at its .page-constrained size, then
+    // narrow the window: width shrinks and height follows via aspect-ratio.
+    await page.setViewportSize({ width: 1600, height: 900 });
     await page.goto(DEMO_PAGE);
     await expect(page.locator('network-visualization .node-label')).toHaveCount(7);
 
@@ -207,14 +209,14 @@ test.describe('Network Visualization Demo Page', () => {
     const boxBefore = await canvas.boundingBox();
     expect(boxBefore).not.toBeNull();
 
-    await page.setViewportSize({ width: 1600, height: 900 });
-    // Wait for the window resize listener + RAF to update the renderer.
+    await page.setViewportSize({ width: 600, height: 900 });
+    // Wait for the ResizeObserver + RAF resize to apply.
     await page.waitForTimeout(200);
 
     const boxAfter = await canvas.boundingBox();
     expect(boxAfter).not.toBeNull();
+    expect(boxAfter.width).toBeLessThan(boxBefore.width - 50);
     expect(boxAfter.height).toBeLessThan(boxBefore.height - 50);
-    expect(boxAfter.width).toBe(boxBefore.width);
 
     // Restore the default viewport for subsequent tests.
     await page.setViewportSize({ width: 1280, height: 720 });
@@ -238,6 +240,36 @@ test.describe('Network Visualization Demo Page', () => {
     await expect(hud).toBeVisible();
     await expect(hud).toContainText('Nodes');
     await expect(hud).toContainText('Edges');
+  });
+
+  test('built-in HUD extends past the element instead of covering it', async ({ page }) => {
+    const label = page.locator('network-visualization .node-label', { hasText: 'Nodes' });
+    await label.click();
+
+    const hud = page.locator('network-visualization .network-hud');
+    await expect(hud).toBeVisible();
+
+    const vizBox = await page.locator('network-visualization').boundingBox();
+    const hudBox = await hud.boundingBox();
+    expect(vizBox).not.toBeNull();
+    expect(hudBox).not.toBeNull();
+
+    // The aside must start at (or beyond) the right edge of the element.
+    expect(hudBox.x).toBeGreaterThanOrEqual(vizBox.x + vizBox.width - 1);
+  });
+
+  test('clipping lives on the canvas viewport, not the host element', async ({ page }) => {
+    const overflow = await page.evaluate(() => {
+      const viz = document.querySelector('network-visualization');
+      const viewport = viz.querySelector('.network-canvas');
+      return {
+        host: window.getComputedStyle(viz).overflow,
+        viewport: viewport ? window.getComputedStyle(viewport).overflow : null,
+      };
+    });
+
+    expect(overflow.host).toBe('visible');
+    expect(overflow.viewport).toBe('hidden');
   });
 
   test('regular wheel scrolls the page and Shift+wheel zooms the camera', async ({ page }) => {

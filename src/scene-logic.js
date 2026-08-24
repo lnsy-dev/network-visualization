@@ -32,6 +32,67 @@ export function computeFitDistance(maxDim, insets, containerSize, fov, paddingFa
 }
 
 /**
+ * Parse a CSS background-color value into an opaque color string plus alpha.
+ *
+ * The component renders on a WebGL canvas, so a transparent or semi-transparent
+ * host theme must be applied as a clear color + clear alpha pair. Without this,
+ * a transparent host background would collapse to opaque black.
+ *
+ * Supports "transparent", hex (#rgb/#rrggbb), and rgb()/rgba() strings with
+ * numeric or percentage channels.
+ *
+ * @param {string|null|undefined} value - CSS color string (e.g. from getComputedStyle)
+ * @returns {{color: string, alpha: number}} Opaque CSS color string and 0..1 alpha
+ */
+export function parseBackgroundColor(value) {
+  if (!value || typeof value !== 'string' || value.trim() === 'transparent') {
+    return { color: '#000000', alpha: 0 };
+  }
+
+  const trimmed = value.trim();
+
+  // rgb() / rgba() with numeric or percentage channels.
+  const functionalMatch = trimmed.match(/^rgba?\(([^)]*)\)$/i);
+  if (functionalMatch) {
+    const channels = functionalMatch[1]
+      .split(/[\s,/]+/)
+      .filter(Boolean)
+      .map((token) => token.trim());
+
+    if (channels.length >= 3) {
+      const toByte = (token) => {
+        if (token.endsWith('%')) {
+          const percent = parseFloat(token);
+          return Number.isFinite(percent) ? Math.round((Math.min(100, Math.max(0, percent)) / 100) * 255) : 0;
+        }
+        const num = parseFloat(token);
+        return Number.isFinite(num) ? Math.min(255, Math.max(0, Math.round(num))) : 0;
+      };
+
+      const r = toByte(channels[0]);
+      const g = toByte(channels[1]);
+      const b = toByte(channels[2]);
+
+      let alpha = 1;
+      if (channels.length >= 4) {
+        if (channels[3].endsWith('%')) {
+          const percent = parseFloat(channels[3]);
+          alpha = Number.isFinite(percent) ? Math.min(1, Math.max(0, percent / 100)) : 1;
+        } else {
+          const num = parseFloat(channels[3]);
+          alpha = Number.isFinite(num) ? Math.min(1, Math.max(0, num)) : 1;
+        }
+      }
+
+      return { color: `rgb(${r}, ${g}, ${b})`, alpha };
+    }
+  }
+
+  // Hex and any other format THREE.Color can parse directly; fully opaque.
+  return { color: trimmed, alpha: 1 };
+}
+
+/**
  * Parse a CSS inset value into top/right/bottom/left pixel numbers.
  *
  * Supports the standard CSS shorthand forms:

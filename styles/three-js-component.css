@@ -1,11 +1,19 @@
-network-visualization {
+/*
+ * The element itself must NOT clip: overlays such as the metadata aside are
+ * allowed to extend past its bounds. Clipping belongs to the inner
+ * .network-canvas viewport, which contains only the WebGL/CSS2D output.
+ *
+ * Defaults are wrapped in :where() so the host page's own rules always win;
+ * these are fallbacks only and must never fight the host's theme or layout.
+ */
+:where(network-visualization) {
   display: block;
   aspect-ratio: 1;
-  background-color: var(--background-color);
-  color: var(--foreground-color);
+  /* Fall back to the host page's theme when the variables are not defined. */
+  background-color: var(--background-color, inherit);
+  color: var(--foreground-color, inherit);
   position: relative;
   box-sizing: border-box;
-  overflow: hidden;
   min-width: 0;
   min-height: 0;
 }
@@ -15,6 +23,27 @@ network-visualization {
   max-height: 100vh;
 }
 
+/* Viewport that clips the renderers without clipping overlays. */
+network-visualization .network-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+network-visualization .network-canvas > canvas {
+  display: block;
+}
+
+network-visualization .network-labels {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
 network-visualization network-node,
 network-visualization network-edge,
 network-visualization network-group {
@@ -22,35 +51,39 @@ network-visualization network-group {
 }
 
 network-visualization .node-label {
-  background-color: var(--background-color);
-  color: var(--foreground-color);
+  background-color: var(--background-color, inherit);
+  color: var(--foreground-color, inherit);
   /* Push the label down from the node so it never sits on top of the mesh,
      even when the node group is scaled by the scale attribute. */
   margin-top: 0.5em;
 }
 
+/*
+ * The metadata aside hangs off the right edge of the element so it extends
+ * past the component column instead of covering the graph.
+ */
 network-visualization .network-hud {
   position: absolute;
   top: 0;
-  right: 0;
   bottom: 0;
+  left: 100%;
   width: 20ch;
-  max-width: 33%;
   margin-left: var(--rhythm-md, 1rem);
   padding: 1rem;
   overflow-y: auto;
-  overflow-x: hidden;
   z-index: 10;
   pointer-events: auto;
   font-style: italic;
-  color: #666;
+  color: var(--foreground-color, inherit);
+  opacity: 0.75;
   line-height: 1.3;
 }
 
 network-visualization .network-hud h2,
 network-visualization .network-hud h3 {
   font-style: normal;
-  color: var(--foreground-color);
+  color: var(--foreground-color, inherit);
+  opacity: 1;
 }
 
 network-visualization .network-hud .node-content {
@@ -93,6 +126,5 @@ network-visualization .network-hud a.connected-node:hover {
 }
 
 network-visualization .network-hud .empty-state {
-  color: #666;
   font-style: italic;
 }

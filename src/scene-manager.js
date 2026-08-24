@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
-import { computeFitDistance } from './scene-logic.js';
+import { computeFitDistance, parseBackgroundColor } from './scene-logic.js';
 
 /**
  * SceneManager
@@ -31,17 +31,24 @@ export default class SceneManager {
     this.camera.position.set(100, 100, 100); // View x-z plane from above
     this.camera.lookAt(0, 0, 0);
 
+    // The viewport wrapper owns the clipping. Keeping overflow: hidden here
+    // (instead of on the host element) lets overlays such as the metadata
+    // aside extend past the element's bounds without being cut off.
+    this.viewportElement = document.createElement('div');
+    this.viewportElement.classList.add('network-canvas');
+
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setSize(width, height);
-    this.renderer.setClearColor(new THREE.Color(backgroundColor));
-    this.container.appendChild(this.renderer.domElement);
+    const clearColor = parseBackgroundColor(backgroundColor);
+    this.renderer.setClearColor(new THREE.Color(clearColor.color), clearColor.alpha);
+    this.viewportElement.appendChild(this.renderer.domElement);
 
     this.labelRenderer = new CSS2DRenderer();
     this.labelRenderer.setSize(width, height);
-    this.labelRenderer.domElement.style.position = 'absolute';
-    this.labelRenderer.domElement.style.top = '0';
-    this.labelRenderer.domElement.style.pointerEvents = 'none';
-    this.container.appendChild(this.labelRenderer.domElement);
+    this.labelRenderer.domElement.classList.add('network-labels');
+    this.viewportElement.appendChild(this.labelRenderer.domElement);
+
+    this.container.appendChild(this.viewportElement);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;

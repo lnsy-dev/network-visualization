@@ -102,22 +102,15 @@ class NetworkVisualization extends DataroomElement {
 
   /**
    * Computes the viewport insets used for camera fitting.
-   * Combines the --network-fit-inset CSS custom property with the width of the
-   * built-in HUD sidebar when it is enabled.
+   * Reads the --network-fit-inset CSS custom property. The built-in HUD sits
+   * entirely outside the element's bounds, so it reserves no inset.
    *
    * @returns {{top: number, right: number, bottom: number, left: number}} Viewport insets in pixels
    */
   getFitInsets() {
     const computedStyle = window.getComputedStyle(this);
     const insetValue = computedStyle.getPropertyValue('--network-fit-inset').trim() || '0';
-    const insets = parseInset(insetValue);
-
-    if (!this.noHud && this.metadataDisplay && this.metadataDisplay.hudElement) {
-      const hudWidth = this.metadataDisplay.hudElement.offsetWidth;
-      insets.right += hudWidth;
-    }
-
-    return insets;
+    return parseInset(insetValue);
   }
 
   /**

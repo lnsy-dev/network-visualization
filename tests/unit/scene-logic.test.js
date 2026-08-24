@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { parseInset, computeFitDistance } from '../../src/scene-logic.js';
+import { parseInset, computeFitDistance, parseBackgroundColor } from '../../src/scene-logic.js';
 
 describe('parseInset', () => {
   it('returns all zeros for null, undefined, and empty values', () => {
@@ -111,5 +111,55 @@ describe('computeFitDistance', () => {
     );
 
     expect(distance).toBe(0);
+  });
+});
+
+describe('parseBackgroundColor', () => {
+  it('treats missing and transparent values as fully transparent black', () => {
+    expect(parseBackgroundColor(null)).toEqual({ color: '#000000', alpha: 0 });
+    expect(parseBackgroundColor(undefined)).toEqual({ color: '#000000', alpha: 0 });
+    expect(parseBackgroundColor('transparent')).toEqual({ color: '#000000', alpha: 0 });
+    expect(parseBackgroundColor('')).toEqual({ color: '#000000', alpha: 0 });
+  });
+
+  it('passes hex colors through as opaque', () => {
+    expect(parseBackgroundColor('#dddbc7')).toEqual({ color: '#dddbc7', alpha: 1 });
+    expect(parseBackgroundColor('#fff')).toEqual({ color: '#fff', alpha: 1 });
+  });
+
+  it('splits rgba() into an opaque color and an alpha', () => {
+    expect(parseBackgroundColor('rgba(255, 136, 0, 0.5)')).toEqual({
+      color: 'rgb(255, 136, 0)',
+      alpha: 0.5,
+    });
+  });
+
+  it('parses space-separated modern rgb() syntax', () => {
+    expect(parseBackgroundColor('rgb(221 219 199)')).toEqual({
+      color: 'rgb(221, 219, 199)',
+      alpha: 1,
+    });
+    expect(parseBackgroundColor('rgb(221 219 199 / 0.25)')).toEqual({
+      color: 'rgb(221, 219, 199)',
+      alpha: 0.25,
+    });
+  });
+
+  it('handles percentage channels', () => {
+    expect(parseBackgroundColor('rgb(100% 50% 0%)')).toEqual({
+      color: 'rgb(255, 128, 0)',
+      alpha: 1,
+    });
+    expect(parseBackgroundColor('rgba(100%, 0%, 0%, 50%)')).toEqual({
+      color: 'rgb(255, 0, 0)',
+      alpha: 0.5,
+    });
+  });
+
+  it('clamps out-of-range channels and alphas', () => {
+    expect(parseBackgroundColor('rgba(300, -20, 0, 2)')).toEqual({
+      color: 'rgb(255, 0, 0)',
+      alpha: 1,
+    });
   });
 });
