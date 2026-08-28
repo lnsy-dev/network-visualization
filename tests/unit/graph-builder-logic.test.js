@@ -12,8 +12,53 @@ import {
   filterValidLinks,
   assignGroupMembership,
   calculateGridPositions,
+  parseScaleAttribute,
+  effectiveNodeSpacing,
+  relaxNodePositions,
+  DEFAULT_RELAX_OPTIONS,
   GROUP_START_POSITIONS,
 } from '../../src/graph-builder-logic.js';
+
+ describe('effectiveNodeSpacing', () => {
+  it('returns the base spacing for scale 1', () => {
+    expect(effectiveNodeSpacing(80, 1)).toBe(80);
+  });
+
+  it('grows with the square root of the scale', () => {
+    expect(effectiveNodeSpacing(80, 4)).toBe(160);
+    expect(effectiveNodeSpacing(80, 9)).toBe(240);
+    expect(effectiveNodeSpacing(80, 5)).toBeCloseTo(80 * Math.sqrt(5));
+  });
+
+  it('falls back to scale 1 for invalid values', () => {
+    expect(effectiveNodeSpacing(80)).toBe(80);
+    expect(effectiveNodeSpacing(80, 0)).toBe(80);
+    expect(effectiveNodeSpacing(80, -2)).toBe(80);
+    expect(effectiveNodeSpacing(80, NaN)).toBe(80);
+  });
+});
+
+ describe('parseScaleAttribute', () => {
+  it('parses positive numeric values', () => {
+    expect(parseScaleAttribute('2.5')).toBe(2.5);
+    expect(parseScaleAttribute('1')).toBe(1);
+    expect(parseScaleAttribute('0.5')).toBe(0.5);
+  });
+
+  it('falls back for missing, invalid, zero, and negative values', () => {
+    const fallback = 3;
+    expect(parseScaleAttribute(null, fallback)).toBe(fallback);
+    expect(parseScaleAttribute(undefined, fallback)).toBe(fallback);
+    expect(parseScaleAttribute('abc', fallback)).toBe(fallback);
+    expect(parseScaleAttribute('0', fallback)).toBe(fallback);
+    expect(parseScaleAttribute('-2', fallback)).toBe(fallback);
+  });
+
+  it('defaults the fallback to 1', () => {
+    expect(parseScaleAttribute('bogus')).toBe(1);
+    expect(parseScaleAttribute('2')).toBe(2);
+  });
+});
 
 describe('graph-builder-logic', () => {
   describe('parseNodeData', () => {
@@ -262,6 +307,145 @@ describe('graph-builder-logic', () => {
       calculateGridPositions(nodes, groups, { nodeSpacing: 10 });
 
       expect(nodes.every((n) => n.gridX !== undefined && n.gridY !== undefined)).toBe(true);
+    });
+  });
+
+  describe('relaxNodePositions', () => {
+    const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+
+    /**
+     * Build test nodes placed on a grid via the real layout function.
+     *
+     * @param {Array<string>} ids - Node IDs
+     * @param {Array<Object>} groups - Group definitions
+     * @param {number} spacing - Grid spacing
+     * @returns {Array<Object>} Nodes with positions assigned
+     */
+    const buildNodes = (ids, groups = [], spacing = 80) => {
+      const nodes = ids.map((id) => ({
+        id,
+        x: 0,
+        y: 0,
+        z: 0,
+        groups: groups.filter((g) => g.nodeIds.includes(id)).map((g) => g.id),
+      }));
+      calculateGridPositions(nodes, groups, { nodeSpacing: spacing });
+      return nodes;
+    };
+
+    it('pulls connected nodes closer to the rest length than their initial distance', () => {
+      const nodes = [
+        { id: 'a', x: 0, y: 0, z: 0, groups: [] },
+        { id: 'b', x: 400, y: 0, z: 0, groups: [] },
+        { id: 'c', x: -400, y: 0, z: 0, groups: [] },
+      ];
+      const links = [{ source: 'a', target: 'b' }];
+
+      relaxNodePositions(nodes, links, [], { linkDistance: 80 });
+
+      const final = dist(nodes[0], nodes[1]);
+      expect(final).toBeLessThan(400);
+      // Converges near the rest length, not just "a bit closer".
+      expect(final).toBeLessThan(150);
+    });
+
+    it('keeps connected nodes near the link distance', () => {
+      const nodes = buildNodes(['a', 'b', 'c']);
+      const links = [
+        { source: 'a', target: 'b' },
+        { source: 'b', target: 'c' },
+      ];
+
+      relaxNodePositions(nodes, links, [], { linkDistance: 80 });
+
+      expect(dist(nodes[0], nodes[1])).toBeLessThan(150);
+      expect(dist(nodes[1], nodes[2])).toBeLessThan(150);
+      // Unconnected endpoints sit at two hops apart, not one.
+      expect(dist(nodes[0], nodes[2])).toBeGreaterThan(dist(nodes[0], nodes[1]));
+    });
+
+    it('does not collapse the graph: nodes keep a minimum separation', () => {
+      const ids = Array.from({ length: 20 }, (_, i) => `n${i}`);
+      const nodes = buildNodes(ids);
+      const links = ids.slice(1).map((id, i) => ({ source: `n${i}`, target: id }));
+
+      relaxNodePositions(nodes, links, [], { linkDistance: 80 });
+
+      let minDist = Infinity;
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          minDist = Math.min(minDist, dist(nodes[i], nodes[j]));
+        }
+      }
+      expect(minDist).toBeGreaterThan(1);
+    });
+
+    it('keeps group members clustered together', () => {
+      const groups = [{ id: 'g1', nodeIds: ['a', 'b', 'c'] }];
+      const nodes = buildNodes(['a', 'b', 'c', 'd'], groups);
+      const links = [{ source: 'a', target: 'd' }];
+      const before = dist(nodes[0], nodes[1]);
+
+      relaxNodePositions(nodes, links, groups, { linkDistance: 80 });
+
+      // Group cohesion keeps members near their original cluster spacing.
+      expect(dist(nodes[0], nodes[1])).toBeLessThan(before + 100);
+      expect(dist(nodes[0], nodes[2])).toBeLessThan(before + 100);
+    });
+
+    it('leaves y coordinates untouched', () => {
+      const nodes = buildNodes(['a', 'b']);
+      const links = [{ source: 'a', target: 'b' }];
+
+      relaxNodePositions(nodes, links, []);
+
+      nodes.forEach((node) => {
+        expect(node.y).toBe(0);
+      });
+    });
+
+    it('is deterministic across runs', () => {
+      const make = () => {
+        const groups = [{ id: 'g1', nodeIds: ['a', 'b'] }];
+        const nodes = buildNodes(['a', 'b', 'c', 'd', 'e'], groups);
+        relaxNodePositions(nodes, [{ source: 'b', target: 'c' }], groups);
+        return nodes.map((n) => `${n.x.toFixed(6)},${n.z.toFixed(6)}`);
+      };
+
+      expect(make()).toEqual(make());
+    });
+
+    it('produces finite positions for edge cases without NaN', () => {
+      const cases = [
+        { nodes: buildNodes(['a', 'b']), links: [{ source: 'a', target: 'b' }] },
+        { nodes: buildNodes(['a', 'b']), links: [{ source: 'a', target: 'missing' }] },
+        { nodes: buildNodes(['a', 'b']), links: [{ source: 'a', target: 'a' }] },
+      ];
+
+      cases.forEach(({ nodes, links }) => {
+        relaxNodePositions(nodes, links, []);
+        nodes.forEach((node) => {
+          expect(Number.isFinite(node.x)).toBe(true);
+          expect(Number.isFinite(node.z)).toBe(true);
+        });
+      });
+    });
+
+    it('returns the input array unchanged for fewer than two nodes', () => {
+      const nodes = [{ id: 'a', x: 10, y: 0, z: 20 }];
+
+      expect(relaxNodePositions(nodes, [])).toBe(nodes);
+      expect(nodes[0].x).toBe(10);
+    });
+
+    it('exposes sensible defaults', () => {
+      expect(DEFAULT_RELAX_OPTIONS.linkDistance).toBe(80);
+      expect(DEFAULT_RELAX_OPTIONS.iterations).toBeGreaterThan(0);
+      expect(DEFAULT_RELAX_OPTIONS.repulsion).toBeGreaterThan(0);
+      expect(DEFAULT_RELAX_OPTIONS.springStrength).toBeGreaterThan(0);
+      expect(DEFAULT_RELAX_OPTIONS.anchorStrength).toBeGreaterThan(0);
+      expect(DEFAULT_RELAX_OPTIONS.maxDisplacement).toBeGreaterThan(0);
+      expect(DEFAULT_RELAX_OPTIONS.groupStrength).toBeGreaterThan(0);
     });
   });
 });

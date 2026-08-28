@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Network Visualization E2E Test</title>
+  <style>
+    :root {
+      --background-color: #1a1a1a;
+      --foreground-color: #ffffff;
+    }
+
+    body {
+      margin: 0;
+      padding: 1rem;
+      background-color: #d3d6cb;
+      color: var(--foreground-color);
+      font-family: sans-serif;
+    }
+
+    network-visualization {
+      display: block;
+      width: 800px;
+      height: 600px;
+      background-color: var(--background-color);
+      color: var(--foreground-color);
+    }
+
+    #metadata-panel {
+      display: block;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      max-width: 33%;
+      max-height: 50%;
+      overflow: auto;
+      background-color: rgba(255, 255, 255, 0.9);
+      color: #000;
+      padding: 1rem;
+    }
+
+    network-visualization .node-label.selected {
+      color: red;
+    }
+  </style>
+  <script type="module" src="/network-visualization.min.js"></script>
+</head>
+<body>
+  <network-visualization id="viz" scale="2.0" labels-zoom-level="0.5" no-hud>
+    <network-node id="node-a" name="Node A" shape="sphere" wireframe="true">
+      <h2>Node A</h2>
+      <p>First test node.</p>
+    </network-node>
+
+    <network-node id="node-b" name="Node B" shape="cube" wireframe="true">
+      <h2>Node B</h2>
+      <p>Second test node.</p>
+    </network-node>
+
+    <network-node id="node-c" name="Node C" shape="pyramid" wireframe="true">
+      <h2>Node C</h2>
+      <p>Third test node.</p>
+    </network-node>
+
+    <network-edge source="node-a" target="node-b" name="connects"></network-edge>
+    <network-edge source="node-b" target="node-c" name="connects"></network-edge>
+
+    <network-group name="Group One" node-ids="node-a,node-b">
+      <h2>Group One</h2>
+      <p>A group containing nodes A and B.</p>
+    </network-group>
+  </network-visualization>
+
+  <div id="metadata-panel" class="selected-node-metadata">
+    <p class="empty-state">Select a node or group to see details.</p>
+  </div>
+
+  <script>
+    const viz = document.getElementById('viz');
+    const panel = document.getElementById('metadata-panel');
+
+    viz.addEventListener('metadata-shown', (event) => {
+      const { title, content, links } = event.detail;
+
+      let html = `<h2>${escapeHtml(title)}</h2>`;
+      html += `<div class="content">${content}</div>`;
+
+      if (links && links.length > 0) {
+        html += '<div class="links">';
+        html += '<h3>Connected</h3>';
+        html += '<ul>';
+        links.forEach((link) => {
+          html += `<li><a href="#" class="connected-node" data-target="${escapeHtml(link)}">${escapeHtml(link)}</a></li>`;
+        });
+        html += '</ul></div>';
+      }
+
+      panel.innerHTML = html;
+    });
+
+    panel.addEventListener('click', (event) => {
+      const target = event.target.closest('[data-target]');
+      if (!target) return;
+
+      const nodeName = target.dataset.target;
+      const nodes = viz.nodes || [];
+      const node = nodes.find((n) => n.name === nodeName);
+      if (node) {
+        viz.selectNodeById(node.id);
+      }
+    });
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

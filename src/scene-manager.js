@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
-import { computeFitDistance, parseBackgroundColor } from './scene-logic.js';
+import { computeFitDistance, computeIntroStartPosition, parseBackgroundColor } from './scene-logic.js';
 
 /**
  * SceneManager
@@ -134,11 +134,76 @@ export default class SceneManager {
    * @returns {void}
    */
   fitCameraToSceneWithInsets(insets, paddingFactor = 1.7) {
+    const pose = this.computeFitCameraPose(insets, paddingFactor);
+    if (!pose) return;
+
+    this.applyCameraPose(pose);
+  }
+
+  /**
+   * Animates the camera from a top-down intro position to the pose that fits
+   * the entire graph inside the inset-safe viewport.
+   *
+   * The camera is placed immediately at the intro position (nearly directly
+   * above the graph, farther out than the fit distance) and then tilts and
+   * zooms in to the final fit pose, so the whole graph stays visible during
+   * the flight.
+   *
+   * @param {{top: number, right: number, bottom: number, left: number}} insets - Viewport insets in pixels
+   * @param {Object} [options] - Animation options
+   * @param {number} [options.paddingFactor=1.2] - Fit padding multiplier for the final pose
+   * @param {number} [options.duration=900] - Animation duration in milliseconds
+   * @param {number} [options.introDistanceScale=1.5] - Intro start distance as a multiple of the fit distance
+   * @returns {void}
+   */
+  animateCameraToSceneWithInsets(insets, options = {}) {
+    const {
+      paddingFactor = 1.2,
+      duration = 900,
+      introDistanceScale = 1.5,
+    } = options;
+
+    const pose = this.computeFitCameraPose(insets, paddingFactor);
+    if (!pose) return;
+
+    const fitDistance = pose.position.distanceTo(pose.target);
+    const introPosition = computeIntroStartPosition(pose.target, fitDistance, introDistanceScale);
+
+    // Snap to the intro pose, then fly to the fit pose.
+    this.camera.position.set(introPosition.x, introPosition.y, introPosition.z);
+    this.controls.target.copy(pose.target);
+    this.camera.up.set(0, 1, 0);
+    this.camera.lookAt(pose.target);
+
+    this.cameraAnimation = {
+      startCameraPos: this.camera.position.clone(),
+      endCameraPos: pose.position,
+      startTarget: this.controls.target.clone(),
+      endTarget: pose.target,
+      startTime: Date.now(),
+      duration,
+    };
+  }
+
+  /**
+   * Computes the camera pose (position and target) that fits the whole graph
+   * into the inset-safe viewport.
+   *
+   * Instead of using setViewOffset (which can clip CSS2D labels and is easy to misuse
+   * without a matching renderer viewport), the camera is translated so the graph is
+   * centered in the inset-safe rectangle and the distance is computed for that
+   * rectangle's dimensions.
+   *
+   * @param {{top: number, right: number, bottom: number, left: number}} insets - Viewport insets in pixels
+   * @param {number} paddingFactor - Multiplier for extra space around objects
+   * @returns {{position: THREE.Vector3, target: THREE.Vector3}|null} The fit pose, or null when the scene is empty
+   */
+  computeFitCameraPose(insets, paddingFactor) {
     const box = this.computeGraphBoundingBox();
 
     if (box.isEmpty()) {
       console.warn('Scene is empty, cannot fit camera');
-      return;
+      return null;
     }
 
     const size = box.getSize(new THREE.Vector3());
@@ -158,6 +223,14 @@ export default class SceneManager {
       this.camera.fov,
       paddingFactor
     );
+
+    // Labels (CSS2DRenderer) and meshes clip beyond the far plane, so it must
+    // always contain the whole fitted graph with margin to spare.
+    const requiredFar = cameraDistance + maxDim * 2;
+    if (requiredFar > this.camera.far) {
+      this.camera.far = requiredFar;
+      this.camera.updateProjectionMatrix();
+    }
 
     // Position camera to look at the graph center from the default angle.
     const direction = this.defaultViewDirection.clone().normalize();
@@ -189,13 +262,26 @@ export default class SceneManager {
 
     const target = center.clone().add(lateralOffset);
 
-    this.camera.position.copy(basePosition).add(lateralOffset);
-    this.camera.up.copy(up);
-    this.camera.lookAt(target);
+    return {
+      position: basePosition.clone().add(lateralOffset),
+      target,
+    };
+  }
+
+  /**
+   * Applies a camera pose immediately and syncs the orbit controls.
+   *
+   * @param {{position: THREE.Vector3, target: THREE.Vector3}} pose - Pose to apply
+   * @returns {void}
+   */
+  applyCameraPose(pose) {
+    this.camera.up.set(0, 1, 0);
+    this.camera.position.copy(pose.position);
+    this.camera.lookAt(pose.target);
     this.camera.clearViewOffset();
 
     // Update controls target to match the shifted view center.
-    this.controls.target.copy(target);
+    this.controls.target.copy(pose.target);
     this.controls.update();
   }
 

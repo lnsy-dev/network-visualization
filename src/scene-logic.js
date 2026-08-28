@@ -32,6 +32,32 @@ export function computeFitDistance(maxDim, insets, containerSize, fov, paddingFa
 }
 
 /**
+ * Compute the camera position for the intro flight that precedes the fit.
+ *
+ * The camera starts hovering nearly top-down above the graph look-at point so
+ * the flight to the fit pose reads as a tilt combined with a zoom-in. The
+ * direction is deliberately not perfectly vertical: looking straight down
+ * along the Y-up axis is degenerate for `lookAt`.
+ *
+ * @param {{x: number, y: number, z: number}} target - Look-at point of the fit pose
+ * @param {number} fitDistance - Camera distance of the final fit pose
+ * @param {number} [distanceScale=1.5] - Start distance as a multiple of fitDistance
+ * @returns {{x: number, y: number, z: number}} Intro camera position
+ */
+export function computeIntroStartPosition(target, fitDistance, distanceScale = 1.5) {
+  const safeFitDistance = Number.isFinite(fitDistance) && fitDistance > 0 ? fitDistance : 1;
+  const safeScale = Number.isFinite(distanceScale) && distanceScale > 0 ? distanceScale : 1.5;
+  const distance = safeFitDistance * safeScale;
+  const lateral = distance * 0.02;
+
+  return {
+    x: target.x + lateral,
+    y: target.y + distance,
+    z: target.z + lateral,
+  };
+}
+
+/**
  * Parse a CSS background-color value into an opaque color string plus alpha.
  *
  * The component renders on a WebGL canvas, so a transparent or semi-transparent

@@ -47,6 +47,38 @@ export const ADJACENT_OFFSETS = [
 ];
 
 /**
+ * Compute the layout spacing for a given node scale.
+ *
+ * Node meshes grow linearly with the scale attribute, so spacing grows with
+ * the square root of the scale: scaled-up nodes keep breathing room without
+ * fully neutralizing the scale (the camera auto-fits, so proportional spacing
+ * would make the attribute a visual no-op).
+ *
+ * @param {number} nodeSpacing - Base spacing between grid cells
+ * @param {number} [nodeScale=1] - Node scale multiplier
+ * @returns {number} Effective spacing in world units
+ */
+export function effectiveNodeSpacing(nodeSpacing, nodeScale = 1) {
+  const scale = Number.isFinite(nodeScale) && nodeScale > 0 ? nodeScale : 1;
+  return nodeSpacing * Math.sqrt(scale);
+}
+
+/**
+ * Parse the `scale` attribute into a positive node scale multiplier.
+ *
+ * The scale attribute scales every node group, including its initial value
+ * read at load time (the attribute-change event only fires on mutations).
+ *
+ * @param {string|null|undefined} value - Raw attribute value
+ * @param {number} [fallback=1] - Value used when parsing fails or result is not positive
+ * @returns {number} Positive scale multiplier
+ */
+export function parseScaleAttribute(value, fallback = 1) {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+/**
  * Normalize raw node data into a graph node object.
  *
  * @param {Object} data - Raw node data
@@ -146,6 +178,202 @@ export function filterValidLinks(links, nodeIds) {
 
     return true;
   });
+}
+
+/**
+ * Default options for the physics relaxation pass.
+ *
+ * @constant {Object}
+ */
+export const DEFAULT_RELAX_OPTIONS = {
+  iterations: 300,
+  linkDistance: 80,
+  springStrength: 0.1,
+  groupStrength: 0.02,
+  repulsion: 6000,
+  anchorStrength: 0.02,
+  maxDisplacement: 6,
+};
+
+/**
+ * Relax node positions with simple physics so connected nodes settle closer
+ * together.
+ *
+ * Runs a deterministic force-directed simulation on the XZ plane (nodes are
+ * laid out flat on the Y axis):
+ *
+ * - **Springs** pull the endpoints of each edge toward `linkDistance` apart,
+ *   which is what keeps connected nodes near each other.
+ * - **Repulsion** pushes every pair of nodes apart so the graph does not
+ *   collapse and unconnected nodes keep breathing room.
+ * - **Anchors** pull each node weakly toward its original grid position.
+ *   The anchor strength decays to zero across the iterations so the grid
+ *   layout shapes the early simulation while the final layout is driven by
+ *   the physics alone.
+ * - **Group cohesion** ties each group's members to the group's first node
+ *   with a weak spring so grouped nodes stay clustered together.
+ *
+ * Each node's movement is capped per iteration for numerical stability.
+ *
+ * @param {Array<Object>} nodes - Nodes with `x`, `y`, `z` already assigned
+ * @param {Array<Object>} links - Links with valid `source` and `target` IDs
+ * @param {Array<Object>} [groups] - Groups with a `nodeIds` array of member IDs
+ * @param {Object} [options] - Relaxation options
+ * @param {number} [options.iterations] - Simulation steps to run
+ * @param {number} [options.linkDistance] - Rest length (world units) for edge springs
+ * @param {number} [options.springStrength] - Spring force per world unit of stretch
+ * @param {number} [options.repulsion] - Repulsion constant applied as `repulsion / dist^2`
+ * @param {number} [options.anchorStrength] - Pull per world unit toward the original position
+ * @param {number} [options.maxDisplacement] - Maximum movement per node per iteration
+ * @returns {Array<Object>} The mutated nodes array
+ */
+export function relaxNodePositions(nodes, links, groups = [], options = {}) {
+  if (nodes.length < 2) return nodes;
+
+  const { iterations, linkDistance, springStrength, groupStrength, repulsion, anchorStrength, maxDisplacement } = {
+    ...DEFAULT_RELAX_OPTIONS,
+    ...options,
+  };
+
+  const nodeIndex = new Map(nodes.map((node, i) => [node.id, i]));
+
+  /**
+   * Resolve a node ID to its index, ignoring unknown IDs.
+   *
+   * @param {string} id - Node ID to resolve
+   * @returns {number|undefined} Node index or undefined
+   */
+  const toIndex = (id) => nodeIndex.get(id);
+
+  // Collect usable edges as index pairs, dropping self-links or dangling IDs.
+  const edges = [];
+  for (const link of links) {
+    const a = toIndex(link.source);
+    const b = toIndex(link.target);
+    if (a === undefined || b === undefined || a === b) continue;
+    edges.push([a, b]);
+  }
+
+  // Weak cohesion springs keep each group's members clustered: every member
+  // is tied back to the first resolved member of the group (a star topology).
+  const groupSprings = [];
+  for (const group of groups) {
+    let anchor = undefined;
+    for (const id of group.nodeIds || []) {
+      const index = toIndex(id);
+      if (index === undefined) continue;
+      if (anchor === undefined) {
+        anchor = index;
+      } else {
+        groupSprings.push([anchor, index]);
+      }
+    }
+  }
+
+  const count = nodes.length;
+  const forceX = new Float64Array(count);
+  const forceZ = new Float64Array(count);
+  const homeX = new Float64Array(count);
+  const homeZ = new Float64Array(count);
+  nodes.forEach((node, i) => {
+    homeX[i] = node.x;
+    homeZ[i] = node.z;
+  });
+
+  const EPSILON = 0.0001;
+  const GOLDEN_ANGLE = 2.399963229728653;
+
+  for (let iteration = 0; iteration < iterations; iteration++) {
+    forceX.fill(0);
+    forceZ.fill(0);
+
+    // The anchor decays to zero so late iterations are pure physics.
+    const progress = iterations > 1 ? iteration / (iterations - 1) : 1;
+    const anchor = anchorStrength * (1 - progress);
+
+    // Repulsion between every pair of nodes.
+    for (let i = 0; i < count; i++) {
+      for (let j = i + 1; j < count; j++) {
+        let dx = nodes[i].x - nodes[j].x;
+        let dz = nodes[i].z - nodes[j].z;
+        let distSq = dx * dx + dz * dz;
+
+        if (distSq < EPSILON) {
+          // Coincident nodes: nudge apart along a deterministic angle so the
+          // result stays stable across runs.
+          const angle = (i * GOLDEN_ANGLE + j * GOLDEN_ANGLE * 0.5) % (2 * Math.PI);
+          dx = Math.cos(angle) * EPSILON;
+          dz = Math.sin(angle) * EPSILON;
+          distSq = EPSILON * EPSILON;
+        }
+
+        const dist = Math.sqrt(distSq);
+        const force = repulsion / (dist * dist);
+        const ux = dx / dist;
+        const uz = dz / dist;
+
+        forceX[i] += ux * force;
+        forceZ[i] += uz * force;
+        forceX[j] -= ux * force;
+        forceZ[j] -= uz * force;
+      }
+    }
+
+    // Springs pull connected nodes toward the rest length.
+    for (const [a, b] of edges) {
+      const dx = nodes[b].x - nodes[a].x;
+      const dz = nodes[b].z - nodes[a].z;
+      let dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist < EPSILON) dist = EPSILON;
+
+      const force = springStrength * (dist - linkDistance);
+      const ux = dx / dist;
+      const uz = dz / dist;
+
+      forceX[a] += ux * force;
+      forceZ[a] += uz * force;
+      forceX[b] -= ux * force;
+      forceZ[b] -= uz * force;
+    }
+
+    // Weak springs keep group members loosely clustered.
+    for (const [a, b] of groupSprings) {
+      const dx = nodes[b].x - nodes[a].x;
+      const dz = nodes[b].z - nodes[a].z;
+      let dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist < EPSILON) dist = EPSILON;
+
+      const force = groupStrength * (dist - linkDistance * 1.2);
+      const ux = dx / dist;
+      const uz = dz / dist;
+
+      forceX[a] += ux * force;
+      forceZ[a] += uz * force;
+      forceX[b] -= ux * force;
+      forceZ[b] -= uz * force;
+    }
+
+    // Apply displacement, with an anchor pull toward the home grid position.
+    for (let i = 0; i < count; i++) {
+      const node = nodes[i];
+      forceX[i] -= anchor * (node.x - homeX[i]);
+      forceZ[i] -= anchor * (node.z - homeZ[i]);
+
+      // Cap the step so the simulation cannot explode.
+      let dx = forceX[i];
+      let dz = forceZ[i];
+      const magnitude = Math.sqrt(dx * dx + dz * dz);
+      if (magnitude > maxDisplacement) {
+        dx = (dx / magnitude) * maxDisplacement;
+        dz = (dz / magnitude) * maxDisplacement;
+      }
+
+      node.x += dx;
+      node.z += dz;
+    }
+  }
+
+  return nodes;
 }
 
 /**

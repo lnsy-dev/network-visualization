@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { parseInset, computeFitDistance, parseBackgroundColor } from '../../src/scene-logic.js';
+import { parseInset, computeFitDistance, computeIntroStartPosition, parseBackgroundColor } from '../../src/scene-logic.js';
 
 describe('parseInset', () => {
   it('returns all zeros for null, undefined, and empty values', () => {
@@ -161,5 +161,40 @@ describe('parseBackgroundColor', () => {
       color: 'rgb(255, 0, 0)',
       alpha: 1,
     });
+  });
+});
+
+describe('computeIntroStartPosition', () => {
+  const target = { x: 100, y: 5, z: -50 };
+
+  it('places the camera above the target at the scaled fit distance', () => {
+    const pos = computeIntroStartPosition(target, 200, 1.5);
+
+    expect(pos.y).toBeCloseTo(5 + 300);
+  });
+
+  it('adds a small lateral offset so the view direction is never exactly vertical', () => {
+    const pos = computeIntroStartPosition(target, 200, 1.5);
+
+    expect(pos.x).toBeGreaterThan(target.x);
+    expect(pos.z).toBeGreaterThan(target.z);
+    expect(pos.x - target.x).toBeCloseTo(300 * 0.02);
+  });
+
+  it('defaults the distance scale to 1.5', () => {
+    const pos = computeIntroStartPosition(target, 200);
+
+    expect(pos.y).toBeCloseTo(5 + 300);
+  });
+
+  it('falls back to sane values for non-finite or non-positive inputs', () => {
+    const pos = computeIntroStartPosition(target, 0);
+    expect(pos.y).toBeCloseTo(target.y + 1 * 1.5);
+
+    const pos2 = computeIntroStartPosition(target, 200, -1);
+    expect(pos2.y).toBeCloseTo(target.y + 200 * 1.5);
+
+    const pos3 = computeIntroStartPosition(target, Infinity);
+    expect(Number.isFinite(pos3.y)).toBe(true);
   });
 });

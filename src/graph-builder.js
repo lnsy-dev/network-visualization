@@ -7,6 +7,9 @@ import {
   filterValidLinks,
   assignGroupMembership,
   calculateGridPositions,
+  relaxNodePositions,
+  effectiveNodeSpacing,
+  DEFAULT_RELAX_OPTIONS,
 } from './graph-builder-logic.js';
 
 /**
@@ -35,6 +38,7 @@ export default class GraphBuilder {
     this.links = [];
     this.groups = [];
     this.nodeSpacing = 80;
+    this.nodeScale = 1;
   }
 
   /**
@@ -90,8 +94,20 @@ export default class GraphBuilder {
     );
 
     assignGroupMembership(this.nodes, this.groups);
+
+    // Scaled-up nodes need proportionally more room. Spacing grows with the
+    // square root of the scale so nodes keep breathing room, and repulsion
+    // scales with the node scale to spread unconnected nodes apart.
+    const spacing = effectiveNodeSpacing(this.nodeSpacing, this.nodeScale);
     calculateGridPositions(this.nodes, this.groups, {
-      nodeSpacing: this.nodeSpacing,
+      nodeSpacing: spacing,
+    });
+
+    // Physics pass: pull connected nodes closer together while keeping the
+    // overall group layout intact.
+    relaxNodePositions(this.nodes, this.links, this.groups, {
+      linkDistance: spacing,
+      repulsion: DEFAULT_RELAX_OPTIONS.repulsion * this.nodeScale,
     });
 
     this.createNodeMeshes();

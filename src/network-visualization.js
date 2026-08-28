@@ -5,6 +5,7 @@ import GroupWireframeManager from './group-wireframe-manager.js';
 import MetadataDisplay from './metadata-display.js';
 import InteractionHandler from './interaction-handler.js';
 import { parseInset } from './scene-logic.js';
+import { parseScaleAttribute } from './graph-builder-logic.js';
 
 /**
  * NetworkVisualization Custom Element
@@ -22,7 +23,8 @@ import { parseInset } from './scene-logic.js';
  * </network-visualization>
  * 
  * @attribute {number} minimum-node-size - Minimum size multiplier for nodes (default: 1.0)
- * @attribute {number} scale - Scale factor for all nodes (default: 1.0)
+ * @attribute {number} scale - Scale factor for all nodes (default: 1.0). Applied on
+ *   first load and on attribute changes.
  * @attribute {number} labels-zoom-level - Zoom level at which labels become visible
  * @attribute {boolean} no-hud - Suppress the built-in metadata sidebar and rely on the metadata-shown event
  * @attribute {boolean} zoom-to-fit - Deprecated no-op; the camera now always fits on load
@@ -46,12 +48,17 @@ class NetworkVisualization extends DataroomElement {
       width = Math.max(width, 1);
       height = Math.max(height, 1);
     }
+    this._hasFitted = false;
 
     const computedStyle = window.getComputedStyle(this);
     this.foregroundColor = computedStyle.color;
     const backgroundColor = computedStyle.backgroundColor;
     const minimumNodeSize = parseFloat(this.getAttribute('minimum-node-size')) || 1.0;
     this.noHud = this.hasAttribute('no-hud');
+
+    // The scale attribute must be read at init time: NODE-CHANGED events only
+    // fire for later mutations, not for attributes set before connecting.
+    this.nodeScale = parseScaleAttribute(this.getAttribute('scale'));
 
     this.sceneManager = new SceneManager(this, width, height, backgroundColor);
     this.graphBuilder = new GraphBuilder(
@@ -60,6 +67,14 @@ class NetworkVisualization extends DataroomElement {
       backgroundColor,
       minimumNodeSize
     );
+    this.graphBuilder.nodeScale = this.nodeScale;
+
+    // Once the user interacts with the camera (drag, Shift+zoom) automatic
+    // refitting stops, so their viewpoint is never overridden.
+    this._userInteracted = false;
+    this.sceneManager.controls.addEventListener('start', () => {
+      this._userInteracted = true;
+    });
     this.wireframeManager = new GroupWireframeManager(this.sceneManager.graphGroup);
     this.metadataDisplay = new MetadataDisplay(this, this.create.bind(this), this.noHud);
     this.interactionHandler = new InteractionHandler(
@@ -94,10 +109,33 @@ class NetworkVisualization extends DataroomElement {
 
     this.wireframeManager.createWireframes(groups);
     this.wireframeManager.update(nodes);
+    this.applyNodeScale(this.nodeScale);
 
-    // Always fit the camera so every node is visible, respecting overlay insets.
+    // Fit the camera so every node is visible, respecting overlay insets. The
+    // first real fit flies in from a top-down intro position so the camera
+    // tilts and zooms to reveal the graph; later fits snap immediately.
     const insets = this.getFitInsets();
-    this.sceneManager.fitCameraToSceneWithInsets(insets);
+    if (this._hasFitted || this._initialSizeZero) {
+      // Zero-size hosts snap now and run the intro once a real size arrives.
+      this.sceneManager.fitCameraToSceneWithInsets(insets);
+    } else {
+      this._hasFitted = true;
+      this.sceneManager.animateCameraToSceneWithInsets(insets);
+    }
+  }
+
+  /**
+   * Applies the node scale multiplier to every node's Three.js group.
+   *
+   * @param {number} scale - Positive scale multiplier
+   * @returns {void}
+   */
+  applyNodeScale(scale) {
+    this.nodes.forEach((node) => {
+      if (node.group) {
+        node.group.scale.set(scale, scale, scale);
+      }
+    });
   }
 
   /**
@@ -182,12 +220,8 @@ class NetworkVisualization extends DataroomElement {
   setupAttributeObserver() {
     this.on('NODE-CHANGED', (detail) => {
       if (detail.attribute === 'scale') {
-        const newScale = parseFloat(detail.newValue) || 1.0;
-        this.nodes.forEach(node => {
-          if (node.group) {
-            node.group.scale.set(newScale, newScale, newScale);
-          }
-        });
+        this.nodeScale = parseScaleAttribute(detail.newValue);
+        this.applyNodeScale(this.nodeScale);
       }
     });
   }
@@ -236,7 +270,19 @@ class NetworkVisualization extends DataroomElement {
       if (this._initialSizeZero) {
         this._initialSizeZero = false;
         const insets = this.getFitInsets();
-        this.sceneManager.fitCameraToSceneWithInsets(insets);
+        // First fit with a real size: run the animated intro.
+        if (!this._hasFitted) {
+          this._hasFitted = true;
+          this.sceneManager.animateCameraToSceneWithInsets(insets);
+        } else {
+          this.sceneManager.fitCameraToSceneWithInsets(insets);
+        }
+      } else if (!this._userInteracted) {
+        // Layout settled after load (fonts, async content): the initial fit
+        // is stale. Refit so the graph keeps filling the element until the
+        // user takes control of the camera.
+        this.sceneManager.cameraAnimation = null;
+        this.sceneManager.fitCameraToSceneWithInsets(this.getFitInsets());
       }
     });
   }
