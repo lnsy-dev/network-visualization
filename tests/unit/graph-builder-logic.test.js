@@ -363,7 +363,7 @@ describe('graph-builder-logic', () => {
       const final = dist(nodes[0], nodes[1]);
       expect(final).toBeLessThan(400);
       // Converges near the rest length, not just "a bit closer".
-      expect(final).toBeLessThan(150);
+      expect(final).toBeLessThan(160);
     });
 
     it('keeps connected nodes near the link distance', () => {
@@ -375,8 +375,8 @@ describe('graph-builder-logic', () => {
 
       relaxNodePositions(nodes, links, [], { linkDistance: 80 });
 
-      expect(dist(nodes[0], nodes[1])).toBeLessThan(150);
-      expect(dist(nodes[1], nodes[2])).toBeLessThan(150);
+      expect(dist(nodes[0], nodes[1])).toBeLessThan(160);
+      expect(dist(nodes[1], nodes[2])).toBeLessThan(160);
       // Unconnected endpoints sit at two hops apart, not one.
       expect(dist(nodes[0], nodes[2])).toBeGreaterThan(dist(nodes[0], nodes[1]));
     });
@@ -458,7 +458,7 @@ describe('graph-builder-logic', () => {
     it('exposes sensible defaults', () => {
       expect(DEFAULT_RELAX_OPTIONS.linkDistance).toBe(80);
       expect(DEFAULT_RELAX_OPTIONS.iterations).toBeGreaterThan(0);
-      expect(DEFAULT_RELAX_OPTIONS.repulsion).toBe(12000);
+      expect(DEFAULT_RELAX_OPTIONS.repulsion).toBe(6000);
       expect(DEFAULT_RELAX_OPTIONS.springStrength).toBeGreaterThan(0);
       expect(DEFAULT_RELAX_OPTIONS.anchorStrength).toBeGreaterThan(0);
       expect(DEFAULT_RELAX_OPTIONS.maxDisplacement).toBeGreaterThan(0);

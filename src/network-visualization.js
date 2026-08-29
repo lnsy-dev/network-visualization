@@ -60,7 +60,13 @@ class NetworkVisualization extends DataroomElement {
     // fire for later mutations, not for attributes set before connecting.
     this.nodeScale = parseScaleAttribute(this.getAttribute('scale'));
 
+    // Read the label visibility threshold. Labels are hidden when the camera is
+    // farther than fitDistance / labelsZoomLevel. The default 0.5 keeps labels
+    // visible at the fitted overview zoom (zoom === 1).
+    this.labelsZoomLevel = parseFloat(this.getAttribute('labels-zoom-level')) || 0.5;
+
     this.sceneManager = new SceneManager(this, width, height, backgroundColor);
+    this.sceneManager.setLabelsZoomLevel(this.labelsZoomLevel);
     this.graphBuilder = new GraphBuilder(
       this.sceneManager.graphGroup,
       this.foregroundColor,
@@ -223,6 +229,11 @@ class NetworkVisualization extends DataroomElement {
       if (detail.attribute === 'scale') {
         this.nodeScale = parseScaleAttribute(detail.newValue);
         this.applyNodeScale(this.nodeScale);
+      } else if (detail.attribute === 'labels-zoom-level') {
+        this.labelsZoomLevel = parseFloat(detail.newValue) || 0.5;
+        if (this.sceneManager) {
+          this.sceneManager.setLabelsZoomLevel(this.labelsZoomLevel);
+        }
       }
     });
   }
@@ -278,11 +289,11 @@ class NetworkVisualization extends DataroomElement {
         } else {
           this.sceneManager.fitCameraToSceneWithInsets(insets);
         }
-      } else if (!this._userInteracted) {
+      } else if (!this._userInteracted && !this.sceneManager.cameraAnimation) {
         // Layout settled after load (fonts, async content): the initial fit
         // is stale. Refit so the graph keeps filling the element until the
-        // user takes control of the camera.
-        this.sceneManager.cameraAnimation = null;
+        // user takes control of the camera. Leave a running intro animation
+        // alone so the camera does not snap mid-flight.
         this.sceneManager.fitCameraToSceneWithInsets(this.getFitInsets());
       }
     });

@@ -25,9 +25,13 @@ export default class InteractionHandler {
     this.labelRendererElement = labelRendererElement;
     this.sceneManager = sceneManager;
     this.selectedObject = null;
+    this.hoveredObject = null;
+    this.nodes = [];
+    this.groupWireframes = [];
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
     this.mouseDownPos = new THREE.Vector2();
+    this.isMouseDown = false;
     this.isDragging = false;
     
     this.raycaster.params.Points.threshold = 30;
@@ -43,15 +47,23 @@ export default class InteractionHandler {
    * @returns {void}
    */
   setupClickHandler(nodes, groupWireframes, onSelectionChange) {
-    // Track mouse down for drag detection
+    this.nodes = nodes;
+    this.groupWireframes = groupWireframes;
+
+    // Track mouse down/up for drag detection and hover cursor
     this.rendererElement.addEventListener('mousedown', (event) => {
+      this.isMouseDown = true;
       this.mouseDownPos.x = event.clientX;
       this.mouseDownPos.y = event.clientY;
       this.isDragging = false;
     });
-    
+
+    this.rendererElement.addEventListener('mouseup', () => {
+      this.isMouseDown = false;
+    });
+
     this.rendererElement.addEventListener('mousemove', (event) => {
-      if (this.mouseDownPos.x !== undefined) {
+      if (this.isMouseDown) {
         if (
           isDrag(
             { x: this.mouseDownPos.x, y: this.mouseDownPos.y },
@@ -61,6 +73,14 @@ export default class InteractionHandler {
           this.isDragging = true;
         }
       }
+
+      this.updateHoverCursor(event, nodes);
+    });
+
+    this.rendererElement.addEventListener('mouseleave', () => {
+      this.isMouseDown = false;
+      this.rendererElement.style.cursor = '';
+      this.setHover(null);
     });
     
     // Handle label clicks on the CSS2DRenderer overlay
@@ -77,6 +97,23 @@ export default class InteractionHandler {
           }
           return;
         }
+      }
+    });
+
+    // Highlight nodes and labels on label hover.
+    this.labelRendererElement.addEventListener('mouseover', (event) => {
+      if (event.target.classList.contains('node-label')) {
+        const nodeId = event.target.dataset.nodeId;
+        const hoveredNode = nodes.find((node) => node.id === nodeId);
+        if (hoveredNode) {
+          this.setHover(hoveredNode);
+        }
+      }
+    });
+
+    this.labelRendererElement.addEventListener('mouseout', (event) => {
+      if (event.target.classList.contains('node-label')) {
+        this.setHover(null);
       }
     });
 
@@ -136,8 +173,41 @@ export default class InteractionHandler {
   }
 
   /**
+   * Updates the renderer cursor and hover state based on the pointer position.
+   *
+   * Nodes are clickable like labels, so the cursor changes to a pointer when
+   * the pointer is over a node mesh, and the node/label are highlighted with the
+   * secondary theme color.
+   *
+   * @param {MouseEvent} event - The mousemove event
+   * @param {Array} nodes - Array of node objects
+   * @returns {void}
+   */
+  updateHoverCursor(event, nodes) {
+    if (this.isDragging) {
+      this.rendererElement.style.cursor = '';
+      this.setHover(null);
+      return;
+    }
+
+    const rect = this.rendererElement.getBoundingClientRect();
+    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+
+    const hoveredNode = intersects.length > 0
+      ? nodes.find((node) => node.mesh === intersects[0].object)
+      : null;
+
+    this.rendererElement.style.cursor = hoveredNode ? 'pointer' : '';
+    this.setHover(hoveredNode);
+  }
+
+  /**
    * Handles selection changes and visual highlighting
-   * 
+   *
    * @param {Object|null} newSelection - The newly selected object or null
    * @param {Function} onSelectionChange - Callback when selection changes
    * @returns {void}
@@ -145,13 +215,7 @@ export default class InteractionHandler {
   handleSelection(newSelection, onSelectionChange) {
     if (this.selectedObject && this.selectedObject !== newSelection) {
       if (this.selectedObject.mesh) {
-        this.selectedObject.mesh.material.color.set(this.selectedObject.originalColor);
-        this.selectedObject.mesh.material.needsUpdate = true;
-        // Remove .selected class from label
-        const label = this.labelRendererElement.querySelector(`[data-node-id="${this.selectedObject.id}"]`);
-        if (label) {
-          label.classList.remove('selected');
-        }
+        // Node reset is handled by applyHoverStyles.
       } else if (this.selectedObject.wireframe) {
         this.selectedObject.wireframe.material.color.set(this.selectedObject.originalColor || 0x888888);
         this.selectedObject.wireframe.material.opacity = 0.5;
@@ -163,14 +227,6 @@ export default class InteractionHandler {
 
     if (newSelection) {
       if (newSelection.mesh) {
-        newSelection.mesh.material.color.set(0xff0000);
-        newSelection.mesh.material.needsUpdate = true;
-        // Add .selected class to label
-        const label = this.labelRendererElement.querySelector(`[data-node-id="${newSelection.id}"]`);
-        if (label) {
-          label.classList.add('selected');
-        }
-        
         // Animate camera to focus selected node while keeping every node visible
         if (this.sceneManager && newSelection.x !== undefined) {
           const targetPosition = new THREE.Vector3(newSelection.x, newSelection.y, newSelection.z);
@@ -190,9 +246,82 @@ export default class InteractionHandler {
       }
     }
 
+    this.applyHoverStyles();
+
     if (onSelectionChange) {
       onSelectionChange(newSelection);
     }
+  }
+
+  /**
+   * Sets the currently hovered node and updates hover/selection visuals.
+   *
+   * @param {Object|null} newHover - The newly hovered node or null
+   * @returns {void}
+   */
+  setHover(newHover) {
+    if (this.hoveredObject === newHover) return;
+
+    this.hoveredObject = newHover;
+    this.applyHoverStyles();
+  }
+
+  /**
+   * Applies hover and selection colors/classes to nodes and labels.
+   *
+   * Selected nodes and labels are highlighted with the theme's accent color,
+   * hovered nodes with the secondary color, and everything else reverts to its
+   * original color.
+   *
+   * @returns {void}
+   */
+  applyHoverStyles() {
+    const secondaryColor = this.getSecondaryColor();
+    const accentColor = this.getAccentColor();
+
+    this.nodes.forEach((node) => {
+      const isSelected = this.selectedObject === node;
+      const isHovered = this.hoveredObject === node && !isSelected;
+
+      if (isSelected) {
+        node.mesh.material.color.set(accentColor);
+      } else if (isHovered) {
+        node.mesh.material.color.set(secondaryColor);
+      } else {
+        node.mesh.material.color.set(node.originalColor);
+      }
+      node.mesh.material.needsUpdate = true;
+
+      const label = this.labelRendererElement.querySelector(`[data-node-id="${node.id}"]`);
+      if (label) {
+        label.classList.toggle('selected', isSelected);
+        label.classList.toggle('hover', isHovered);
+      }
+    });
+  }
+
+  /**
+   * Reads the secondary theme color from the component's CSS variable.
+   *
+   * @returns {THREE.Color} The secondary color as a Three.js Color
+   */
+  getSecondaryColor() {
+    const container = this.rendererElement.closest('network-visualization');
+    const style = container ? window.getComputedStyle(container) : null;
+    const secondary = style ? style.getPropertyValue('--secondary').trim() : '';
+    return new THREE.Color(secondary || '#ffffff');
+  }
+
+  /**
+   * Reads the accent theme color from the component's CSS variable.
+   *
+   * @returns {THREE.Color} The accent color as a Three.js Color
+   */
+  getAccentColor() {
+    const container = this.rendererElement.closest('network-visualization');
+    const style = container ? window.getComputedStyle(container) : null;
+    const accent = style ? style.getPropertyValue('--accent').trim() : '';
+    return new THREE.Color(accent || '#ffffff');
   }
 
   /**

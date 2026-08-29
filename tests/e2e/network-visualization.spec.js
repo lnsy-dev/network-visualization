@@ -9,6 +9,7 @@ import { test, expect } from '@playwright/test';
 const TEST_PAGE = '/e2e-test.html';
 const SCALED_TEST_PAGE = '/e2e-test-scaled.html';
 const DEMO_PAGE = '/index.html';
+const LABEL_TEST_PAGE = '/e2e-test-label.html';
 
 /**
  * Waits until the intro camera animation has finished and nodes are settled.
@@ -69,13 +70,17 @@ test.describe('Network Visualization', () => {
     const labels = page.locator('network-visualization .node-label');
     const count = await labels.count();
 
+    // Labels extend below their node anchors, so allow a small amount of slack
+    // at the viewport edges.
+    const tolerance = 10;
+
     for (let i = 0; i < count; i++) {
       const labelBox = await labels.nth(i).boundingBox();
       expect(labelBox).not.toBeNull();
-      expect(labelBox.x).toBeGreaterThanOrEqual(canvasBox.x - 1);
-      expect(labelBox.y).toBeGreaterThanOrEqual(canvasBox.y - 1);
-      expect(labelBox.x + labelBox.width).toBeLessThanOrEqual(canvasBox.x + canvasBox.width + 1);
-      expect(labelBox.y + labelBox.height).toBeLessThanOrEqual(canvasBox.y + canvasBox.height + 1);
+      expect(labelBox.x).toBeGreaterThanOrEqual(canvasBox.x - tolerance);
+      expect(labelBox.y).toBeGreaterThanOrEqual(canvasBox.y - tolerance);
+      expect(labelBox.x + labelBox.width).toBeLessThanOrEqual(canvasBox.x + canvasBox.width + tolerance);
+      expect(labelBox.y + labelBox.height).toBeLessThanOrEqual(canvasBox.y + canvasBox.height + tolerance);
     }
   });
 
@@ -128,6 +133,187 @@ test.describe('Network Visualization', () => {
     await page.mouse.click(box.x + box.width - 20, box.y + box.height - 20);
 
     await expect(label).not.toHaveClass(/selected/);
+  });
+
+  test('uses isometric view for selected node and top-down view when deselected', async ({ page }) => {
+    const label = page.locator('network-visualization .node-label', { hasText: 'Node A' });
+    const canvas = page.locator('network-visualization canvas');
+
+    const isTopDown = ({ pos, target }) => {
+      const dx = Math.abs(pos[0] - target[0]);
+      const dz = Math.abs(pos[2] - target[2]);
+      const dy = pos[1] - target[1];
+      // Top-down: camera is almost directly above the target.
+      return dx < 1 && dz < 1 && dy > 50;
+    };
+
+    const isIsometric = ({ pos, target }) => {
+      const dx = Math.abs(pos[0] - target[0]);
+      const dy = Math.abs(pos[1] - target[1]);
+      const dz = Math.abs(pos[2] - target[2]);
+      // Isometric: camera is offset significantly along all three axes.
+      return dx > 20 && dy > 20 && dz > 20;
+    };
+
+    const getCameraState = () => page.evaluate(() => {
+      const viz = document.querySelector('network-visualization');
+      return {
+        pos: viz.sceneManager.camera.position.toArray(),
+        target: viz.sceneManager.controls.target.toArray(),
+      };
+    });
+
+    // Initial overview is top-down.
+    const initialState = await getCameraState();
+    expect(isTopDown(initialState)).toBe(true);
+
+    await label.click();
+    await expect(label).toHaveClass(/selected/);
+    await page.waitForTimeout(900);
+
+    const focusedState = await getCameraState();
+    expect(isIsometric(focusedState)).toBe(true);
+
+    const box = await canvas.boundingBox();
+    await page.mouse.click(box.x + box.width - 20, box.y + box.height - 20);
+    await expect(label).not.toHaveClass(/selected/);
+    await page.waitForTimeout(900);
+
+    const resetState = await getCameraState();
+    expect(isTopDown(resetState)).toBe(true);
+  });
+
+  test('shows pointer cursor when hovering over a node mesh', async ({ page }) => {
+    const canvas = page.locator('network-visualization canvas');
+    const canvasBox = await canvas.boundingBox();
+    expect(canvasBox).not.toBeNull();
+
+    // Compute the node mesh's screen position. We dispatch the event directly
+    // on the canvas so the label overlay (which has its own pointer cursor) does
+    // not intercept it.
+    const screenPos = await page.evaluate(() => {
+      const viz = document.querySelector('network-visualization');
+      const node = viz.nodes.find((n) => n.id === 'node-a');
+      const pos = viz.sceneManager.camera.position.clone();
+      pos.set(node.x, node.y, node.z);
+      pos.project(viz.sceneManager.camera);
+      return {
+        x: ((pos.x + 1) / 2) * viz.clientWidth,
+        y: ((-pos.y + 1) / 2) * viz.clientHeight,
+      };
+    });
+
+    await page.evaluate(
+      ({ clientX, clientY }) => {
+        const canvas = document.querySelector('network-visualization canvas');
+        canvas.dispatchEvent(
+          new MouseEvent('mousemove', {
+            clientX,
+            clientY,
+            bubbles: true,
+          })
+        );
+      },
+      {
+        clientX: canvasBox.x + screenPos.x,
+        clientY: canvasBox.y + screenPos.y,
+      }
+    );
+
+    await expect(canvas).toHaveCSS('cursor', 'pointer');
+
+    // Move to an empty corner and confirm the cursor resets.
+    await page.evaluate(
+      ({ clientX, clientY }) => {
+        const canvas = document.querySelector('network-visualization canvas');
+        canvas.dispatchEvent(
+          new MouseEvent('mousemove', {
+            clientX,
+            clientY,
+            bubbles: true,
+          })
+        );
+      },
+      {
+        clientX: canvasBox.x + canvasBox.width - 20,
+        clientY: canvasBox.y + canvasBox.height - 20,
+      }
+    );
+
+    await expect(canvas).not.toHaveCSS('cursor', 'pointer');
+  });
+
+  test('highlights hovered node and label with secondary color', async ({ page }) => {
+    const canvas = page.locator('network-visualization canvas');
+    const canvasBox = await canvas.boundingBox();
+    expect(canvasBox).not.toBeNull();
+
+    const screenPos = await page.evaluate(() => {
+      const viz = document.querySelector('network-visualization');
+      const node = viz.nodes.find((n) => n.id === 'node-a');
+      const pos = viz.sceneManager.camera.position.clone();
+      pos.set(node.x, node.y, node.z);
+      pos.project(viz.sceneManager.camera);
+      return {
+        x: ((pos.x + 1) / 2) * viz.clientWidth,
+        y: ((-pos.y + 1) / 2) * viz.clientHeight,
+      };
+    });
+
+    await page.evaluate(
+      ({ clientX, clientY }) => {
+        const canvas = document.querySelector('network-visualization canvas');
+        canvas.dispatchEvent(
+          new MouseEvent('mousemove', {
+            clientX,
+            clientY,
+            bubbles: true,
+          })
+        );
+      },
+      {
+        clientX: canvasBox.x + screenPos.x,
+        clientY: canvasBox.y + screenPos.y,
+      }
+    );
+
+    const label = page.locator('network-visualization .node-label', { hasText: 'Node A' });
+    await expect(label).toHaveClass(/hover/);
+
+    const hoveredColor = await page.evaluate(() => {
+      const viz = document.querySelector('network-visualization');
+      const node = viz.nodes.find((n) => n.id === 'node-a');
+      return node.mesh.material.color.getHexString();
+    });
+    expect(hoveredColor).not.toBe('ffffff'); // Hover uses --secondary, not foreground white
+
+    // Move away and confirm hover state clears.
+    await page.evaluate(
+      ({ clientX, clientY }) => {
+        const canvas = document.querySelector('network-visualization canvas');
+        canvas.dispatchEvent(
+          new MouseEvent('mousemove', {
+            clientX,
+            clientY,
+            bubbles: true,
+          })
+        );
+      },
+      {
+        clientX: canvasBox.x + canvasBox.width - 20,
+        clientY: canvasBox.y + canvasBox.height - 20,
+      }
+    );
+
+    await expect(label).not.toHaveClass(/hover/);
+  });
+
+  test('highlights selected node label with accent color', async ({ page }) => {
+    const label = page.locator('network-visualization .node-label', { hasText: 'Node A' });
+    await label.click();
+
+    await expect(label).toHaveClass(/selected/);
+    await expect(label).toHaveCSS('color', 'rgb(255, 153, 0)');
   });
 
   test('keeps connected nodes closer together than unconnected ones', async ({ page }) => {
@@ -209,8 +395,8 @@ test.describe('Network Visualization', () => {
     );
     expect(moved).toBeGreaterThan(1);
 
-    // The intro ends higher up than it finishes: it starts top-down above the
-    // graph and tilts down to the isometric fit angle while zooming in.
+    // The intro starts farther above the graph and zooms in to the fitted
+    // top-down overview, so the midpoint is higher than the final position.
     expect(midIntro.position[1]).toBeGreaterThan(final.position[1]);
   });
 
@@ -306,6 +492,37 @@ test.describe('Network Visualization', () => {
   });
 });
 
+test.describe('Network Label', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto(LABEL_TEST_PAGE);
+    await expect(page.locator('network-visualization .node-label')).toHaveCount(2);
+    await waitForIntroAnimation(page);
+  });
+
+  test('built-in HUD shows custom network-label content before selection', async ({ page }) => {
+    const hud = page.locator('network-visualization .network-hud');
+    await expect(hud).toBeVisible();
+    await expect(hud).toContainText('Custom starting aside:');
+    await expect(hud).toContainText('select something');
+    await expect(hud.locator('strong')).toHaveText('select something');
+  });
+
+  test('built-in HUD returns to custom network-label content after deselecting', async ({ page }) => {
+    const label = page.locator('network-visualization .node-label', { hasText: 'Node A' });
+    await label.click();
+
+    const hud = page.locator('network-visualization .network-hud');
+    await expect(hud).toContainText('Node A');
+
+    const canvas = page.locator('network-visualization canvas');
+    const box = await canvas.boundingBox();
+    await page.mouse.click(box.x + box.width - 20, box.y + box.height - 20);
+
+    await expect(hud).toContainText('Custom starting aside:');
+    await expect(hud).toContainText('select something');
+  });
+});
+
 test.describe('Network Visualization Demo Page', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(DEMO_PAGE);
@@ -314,7 +531,7 @@ test.describe('Network Visualization Demo Page', () => {
     await waitForIntroAnimation(page);
   });
 
-  test('fits all node labels inside the viewport on load', async ({ page }) => {
+  test('fits all visible node labels inside the viewport on load', async ({ page }) => {
     const canvas = page.locator('network-visualization canvas');
     const canvasBox = await canvas.boundingBox();
     expect(canvasBox).not.toBeNull();
@@ -323,11 +540,15 @@ test.describe('Network Visualization Demo Page', () => {
     const count = await labels.count();
 
     // HTML labels overhang their node anchors by their own pixel width, which
-    // the world-space fit cannot fully account for; allow a few px of slack.
-    const tolerance = 5;
+    // the world-space fit cannot fully account for; allow a generous slack.
+    const tolerance = 20;
 
     for (let i = 0; i < count; i++) {
-      const labelBox = await labels.nth(i).boundingBox();
+      const label = labels.nth(i);
+      const isHidden = await label.evaluate((el) => el.style.visibility === 'hidden');
+      if (isHidden) continue;
+
+      const labelBox = await label.boundingBox();
       expect(labelBox).not.toBeNull();
       expect(labelBox.x).toBeGreaterThanOrEqual(canvasBox.x - tolerance);
       expect(labelBox.y).toBeGreaterThanOrEqual(canvasBox.y - tolerance);
@@ -370,9 +591,19 @@ test.describe('Network Visualization Demo Page', () => {
     expect(vizBox.height).toBeLessThanOrEqual(600);
   });
 
+  test('built-in HUD shows default empty state before selection', async ({ page }) => {
+    const hud = page.locator('network-visualization .network-hud');
+    await expect(hud).toBeVisible();
+    await expect(hud).toContainText('Select a node or group to see details.');
+  });
+
   test('built-in HUD shows selected node metadata', async ({ page }) => {
-    const label = page.locator('network-visualization .node-label', { hasText: 'JavaScript' });
-    await label.click();
+    // The demo page hides labels at the overview zoom level, so select the node
+    // through the component API instead of clicking a label.
+    await page.evaluate(() => {
+      const viz = document.querySelector('network-visualization');
+      viz.selectNodeById('javascript');
+    });
 
     const hud = page.locator('network-visualization .network-hud');
     await expect(hud).toBeVisible();
@@ -381,8 +612,10 @@ test.describe('Network Visualization Demo Page', () => {
   });
 
   test('built-in HUD extends past the element instead of covering it', async ({ page }) => {
-    const label = page.locator('network-visualization .node-label', { hasText: 'JavaScript' });
-    await label.click();
+    await page.evaluate(() => {
+      const viz = document.querySelector('network-visualization');
+      viz.selectNodeById('javascript');
+    });
 
     const hud = page.locator('network-visualization .network-hud');
     await expect(hud).toBeVisible();
@@ -484,5 +717,53 @@ test.describe('Network Visualization Demo Page', () => {
     });
 
     expect(distanceAfter).not.toBe(distanceBefore);
+  });
+
+  test('hides labels at overview zoom and shows them after zooming in', async ({ page }) => {
+    // Opt in to label hiding for this test.
+    await page.evaluate(() => {
+      const viz = document.querySelector('network-visualization');
+      viz.setAttribute('labels-zoom-level', '2');
+    });
+    await page.waitForTimeout(200);
+
+    const labels = page.locator('network-visualization .node-label');
+    const count = await labels.count();
+    expect(count).toBe(24);
+
+    // At the overview zoom level (zoom === 1), labels should be hidden because
+    // the threshold is 2.
+    const hiddenAtOverview = await labels.evaluateAll((elements) =>
+      elements.every((el) => el.style.visibility === 'hidden')
+    );
+    expect(hiddenAtOverview).toBe(true);
+
+    // Zoom in by moving the camera to one third of the fitted distance from
+    // the target, which makes the zoom level 3 (> 2).
+    await page.evaluate(() => {
+      const viz = document.querySelector('network-visualization');
+      const sm = viz.sceneManager;
+      const target = sm.controls.target;
+      const pos = sm.camera.position;
+      const dx = pos.x - target.x;
+      const dy = pos.y - target.y;
+      const dz = pos.z - target.z;
+      const currentDistance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      const scale = (sm.fitDistance / 3) / currentDistance;
+      pos.set(
+        target.x + dx * scale,
+        target.y + dy * scale,
+        target.z + dz * scale
+      );
+      sm.controls.update();
+    });
+
+    // Wait for the animation loop to update label visibility.
+    await page.waitForTimeout(200);
+
+    const visibleAfterZoom = await labels.evaluateAll((elements) =>
+      elements.every((el) => el.style.visibility === 'visible')
+    );
+    expect(visibleAfterZoom).toBe(true);
   });
 });

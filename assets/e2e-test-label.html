@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Network Visualization Label Test</title>
+  <style>
+    :root {
+      --background-color: #1a1a1a;
+      --foreground-color: #ffffff;
+    }
+
+    body {
+      margin: 0;
+      padding: 1rem;
+      background-color: #d3d6cb;
+      color: var(--foreground-color);
+      font-family: sans-serif;
+    }
+
+    network-visualization {
+      display: block;
+      width: 800px;
+      height: 600px;
+      background-color: var(--background-color);
+      color: var(--foreground-color);
+    }
+  </style>
+  <script type="module" src="/network-visualization.min.js"></script>
+</head>
+<body>
+  <network-visualization id="viz" scale="1.0" labels-zoom-level="0.5">
+    <network-label>
+      <p class="custom-label">Custom starting aside: <strong>select something</strong> to begin.</p>
+    </network-label>
+
+    <network-node id="node-a" name="Node A" shape="sphere" wireframe="true">
+      <h2>Node A</h2>
+      <p>First test node.</p>
+    </network-node>
+
+    <network-node id="node-b" name="Node B" shape="cube" wireframe="true">
+      <h2>Node B</h2>
+      <p>Second test node.</p>
+    </network-node>
+
+    <network-edge source="node-a" target="node-b" name="connects"></network-edge>
+  </network-visualization>
+</body>
+</html>

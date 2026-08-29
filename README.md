@@ -66,7 +66,7 @@ The main container element for the 3D network graph.
   - Example: `scale="1.5"` makes the graph 50% larger
   - Can be changed dynamically and the graph will update automatically
 
-- **`labels-zoom-level`** (optional): Zoom level at which labels become visible. Default: `1.1`
+- **`labels-zoom-level`** (optional): Zoom level at which labels become visible. Default: `0.5` (labels visible at the fitted overview zoom).
 
 #### Events
 
@@ -89,7 +89,7 @@ viz.addEventListener('metadata-shown', (e) => {
 
 #### CSS Styling
 
-The component inherits `color` and `background-color` from CSS:
+The component inherits `color` and `background-color` from CSS, uses `--secondary` for hover states, and uses `--accent` for the active/selected node label:
 
 ```css
 network-visualization {
@@ -98,6 +98,8 @@ network-visualization {
   height: 600px;
   background-color: #1a1a1a;
   color: #ffffff;
+  --secondary: #ff9900;
+  --accent: #ff9900;
 }
 ```
 
@@ -173,6 +175,20 @@ The inner HTML can contain descriptive information about the group that will be 
 - A padding of 20 units is added around the group's nodes
 - Groups update dynamically as the force simulation adjusts node positions
 - Clicking anywhere inside a group's wireframe will display the group's metadata
+
+### `<network-label>`
+
+Sets the content shown in the built-in metadata aside when no node or group is selected. The element itself is hidden; only its inner HTML is rendered into the aside.
+
+#### Content
+
+The inner HTML can contain any markup. If no `<network-label>` is provided, the aside shows the default message: "Select a node or group to see details."
+
+```html
+<network-label>
+  <p>Select a node or group to see details.</p>
+</network-label>
+```
 
 ## Examples
 
@@ -320,8 +336,9 @@ The inner HTML can contain descriptive information about the group that will be 
   :root {
     --background-color: #0f0f23;
     --foreground-color: #00ff00;
+    --accent: #ff9900;
   }
-  
+
   network-visualization {
     display: block;
     width: 100vw;

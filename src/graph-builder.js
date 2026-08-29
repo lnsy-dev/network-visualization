@@ -171,12 +171,12 @@ export default class GraphBuilder {
         labelDiv.style.cursor = 'pointer';
 
         const label = new CSS2DObject(labelDiv);
-        // Anchor the label at its top center and place it just below the mesh.
+        // Anchor the label at its top center and place it below the mesh.
         // The anchor is the top edge so the text extends downward and does not
-        // overlap the node even when the node group is scaled down.
+        // overlap the node even when the node group is scaled up.
         geometry.computeBoundingBox();
         const boundingBox = geometry.boundingBox;
-        const labelGap = 2;
+        const labelGap = 8;
         label.position.set(0, boundingBox.min.y - labelGap, 0);
         label.center.set(0.5, 0);
         label.element.dataset.nodeId = node.id; // Store node ID for lookup

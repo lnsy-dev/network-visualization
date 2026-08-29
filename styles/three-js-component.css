@@ -46,16 +46,33 @@ network-visualization .network-labels {
 
 network-visualization network-node,
 network-visualization network-edge,
-network-visualization network-group {
+network-visualization network-group,
+network-visualization network-label {
   display: none;
 }
 
 network-visualization .node-label {
   background-color: var(--background-color, inherit);
   color: var(--foreground-color, inherit);
+  font-size: 0.8rem;
+  line-height: 1.2;
+  white-space: nowrap;
   /* Push the label down from the node so it never sits on top of the mesh,
      even when the node group is scaled by the scale attribute. */
-  margin-top: 0.5em;
+  margin-top: 0.75em;
+  /* Add horizontal and vertical padding so the text does not touch the edge
+     of its background, improving readability when labels are close together. */
+  padding: 0.15em 0.4em;
+  border-radius: 0.2em;
+  text-align: center;
+}
+
+network-visualization .node-label.hover {
+  color: var(--secondary, var(--foreground-color, inherit));
+}
+
+network-visualization .node-label.selected {
+  color: var(--accent, var(--foreground-color, inherit));
 }
 
 /*

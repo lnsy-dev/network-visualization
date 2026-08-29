@@ -1,6 +1,14 @@
 import { getConnectedNodeNames, getGroupMemberNames } from './metadata-logic.js';
 
 /**
+ * Default text shown when no node or group is selected and no
+ * <network-label> element is provided.
+ *
+ * @constant {string}
+ */
+const DEFAULT_EMPTY_STATE = 'Select a node or group to see details.';
+
+/**
  * MetadataDisplay
  *
  * Manages the built-in left-sidebar HUD and emits metadata events for selected
@@ -48,6 +56,23 @@ export default class MetadataDisplay {
   }
 
   /**
+   * Returns the HTML to display when no node or group is selected.
+   *
+   * Reads the contents of the first <network-label> child. If none exists or
+   * it is empty, falls back to the default text.
+   *
+   * @returns {string} HTML string for the empty state
+   */
+  getEmptyStateHtml() {
+    const label = this.container.querySelector('network-label');
+    if (label && label.innerHTML.trim()) {
+      return label.innerHTML.trim();
+    }
+
+    return DEFAULT_EMPTY_STATE;
+  }
+
+  /**
    * Shows the empty-state message in the HUD.
    *
    * @returns {void}
@@ -55,11 +80,7 @@ export default class MetadataDisplay {
   showEmptyState() {
     if (!this.contentElement) return;
 
-    this.contentElement.innerHTML = '';
-    this.createElement('p', {
-      class: 'empty-state',
-      content: 'Select a node or group to see details.',
-    }, this.contentElement);
+    this.contentElement.innerHTML = this.getEmptyStateHtml();
   }
 
   /**

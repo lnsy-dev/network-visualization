@@ -49,6 +49,10 @@ export const ADJACENT_OFFSETS = [
 /**
  * Default extra spacing multiplier applied on top of the scaled spacing.
  *
+ * The camera auto-fits the graph, so making the world spacing larger does not
+ * increase screen-space separation. This multiplier is kept small so the grid
+ * layout stays compact; label overlap is handled in screen space.
+ *
  * @constant {number}
  */
 export const SPACING_BREATHING = 2;
@@ -202,11 +206,11 @@ export function filterValidLinks(links, nodeIds) {
 export const DEFAULT_RELAX_OPTIONS = {
   iterations: 300,
   linkDistance: 80,
-  springStrength: 0.1,
+  springStrength: 0.06,
   groupStrength: 0.02,
-  repulsion: 12000,
-  anchorStrength: 0.02,
-  maxDisplacement: 6,
+  repulsion: 6000,
+  anchorStrength: 0.05,
+  maxDisplacement: 5,
 };
 
 /**
@@ -594,11 +598,22 @@ export function calculateGridPositions(
     }
   }
 
-  // Place ungrouped nodes.
-  ungroupedNodes.forEach((node) => {
-    const pos = findPosition(0, 0, null);
-    placeNode(node, pos.x, pos.y);
-  });
+  // Place ungrouped nodes in a compact grid centered at the origin.
+  // A square-ish grid minimizes the bounding box, which makes the auto-fit
+  // camera zoom in and gives the fixed-size CSS2D labels the most screen
+  // separation possible.
+  if (ungroupedNodes.length > 0) {
+    const cols = Math.ceil(Math.sqrt(ungroupedNodes.length));
+    const startX = -Math.floor((cols - 1) / 2);
+    const startY = -Math.floor((Math.ceil(ungroupedNodes.length / cols) - 1) / 2);
+
+    ungroupedNodes.forEach((node, index) => {
+      const gridX = startX + (index % cols);
+      const gridY = startY + Math.floor(index / cols);
+      const pos = findPosition(gridX, gridY, null);
+      placeNode(node, pos.x, pos.y);
+    });
+  }
 
   return nodes;
 }

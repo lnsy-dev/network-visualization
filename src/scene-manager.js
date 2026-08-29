@@ -4,6 +4,15 @@ import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { computeFitDistance, computeIntroStartPosition, parseBackgroundColor } from './scene-logic.js';
 
 /**
+ * Extra margin added to the graph bounding box when fitting the camera so that
+ * CSS2D labels (whose text extends below their anchor points) are not clipped
+ * by the viewport edges.
+ *
+ * @constant {number}
+ */
+const LABEL_MARGIN_RATIO = 0.5;
+
+/**
  * SceneManager
  * 
  * Manages the Three.js scene, camera, renderers, and animation loop
@@ -59,8 +68,31 @@ export default class SceneManager {
     this.animateCallback = null;
     this.cameraAnimation = null;
 
-    // Default viewing direction used when focusing on a node.
-    this.defaultViewDirection = new THREE.Vector3(1, 1, 1).normalize();
+    // Default viewing direction used for the overview and when fitting the scene.
+    // Near-vertical so the overview reads as a top-down map while still giving
+    // OrbitControls a well-defined azimuth to rotate around.
+    this.defaultViewDirection = new THREE.Vector3(0, 1, 0.001).normalize();
+
+    // Viewing direction used when focusing on a selected node. The isometric
+    // angle places the focused node in front of the camera with the rest of the
+    // graph receding behind it.
+    this.nodeFocusViewDirection = new THREE.Vector3(1, 1, 1).normalize();
+
+    // Label visibility threshold. Labels are hidden when the current zoom level
+    // (fitDistance / cameraDistance) is below this value. The default of 0.5
+    // keeps labels visible at the fitted overview zoom (zoom === 1).
+    this.labelsZoomLevel = 0.5;
+    this.fitDistance = null;
+  }
+
+  /**
+   * Sets the zoom level at which labels become visible.
+   *
+   * @param {number} level - Minimum zoom level (fitDistance / cameraDistance)
+   * @returns {void}
+   */
+  setLabelsZoomLevel(level) {
+    this.labelsZoomLevel = Number.isFinite(level) && level > 0 ? level : 0.5;
   }
 
   /**
@@ -85,12 +117,225 @@ export default class SceneManager {
     }
 
     this.controls.update();
-    
+
     if (this.animateCallback) {
       this.animateCallback();
     }
+
+    this.updateLabelVisibility();
+
     this.renderer.render(this.scene, this.camera);
     this.labelRenderer.render(this.scene, this.camera);
+
+    this.resolveLabelCollisions();
+  }
+
+  /**
+   * Shows or hides CSS2D labels based on the current camera zoom level.
+   *
+   * The zoom level is defined as fitDistance / currentDistance, where fitDistance
+   * is the distance computed the last time the camera was fitted to the graph.
+   * At the fitted view the zoom level is 1; zooming in (moving closer) raises it.
+   *
+   * @returns {void}
+   */
+  updateLabelVisibility() {
+    if (this.fitDistance === null || this.labelsZoomLevel <= 0) return;
+
+    const currentDistance = this.camera.position.distanceTo(this.controls.target);
+    const zoomLevel = this.fitDistance / currentDistance;
+    const visible = zoomLevel >= this.labelsZoomLevel;
+
+    // Toggle visibility via CSS. CSS2DRenderer sets element.style.display on
+    // every render pass, so use visibility instead, which the renderer does not
+    // touch and which still prevents hidden labels from intercepting pointer
+    // events.
+    this.graphGroup.traverse((object) => {
+      if (object.isCSS2DObject && object.element) {
+        object.element.style.visibility = visible ? 'visible' : 'hidden';
+      }
+    });
+  }
+
+  /**
+   * Nudges visible CSS2D labels apart in screen space so they do not overlap.
+   *
+   * The graph layout is computed in world units and the camera auto-fits it,
+   * which keeps the screen density of nodes roughly constant. CSS2D labels,
+   * however, are fixed-size HTML. This pass resolves overlaps by applying a
+   * small CSS transform offset to each label, constrained so labels never drift
+   * more than one label-height from their node anchor.
+   *
+   * @returns {void}
+   */
+  resolveLabelCollisions() {
+    const labels = [];
+    this.graphGroup.traverse((object) => {
+      if (object.isCSS2DObject && object.element && object.element.style.visibility !== 'hidden') {
+        const rect = object.element.getBoundingClientRect();
+        labels.push({
+          element: object.element,
+          x: rect.left,
+          y: rect.top,
+          width: rect.width,
+          height: rect.height,
+          offsetX: 0,
+          offsetY: 0,
+        });
+      }
+    });
+
+    if (labels.length < 2) return;
+
+    const firstLabel = labels[0];
+    if (!firstLabel || !firstLabel.element) return;
+
+    const parent = firstLabel.element.parentElement;
+    const parentRect = parent
+      ? parent.getBoundingClientRect()
+      : { left: 0, top: 0, width: Infinity, height: Infinity };
+    const maxOffset = Math.max(...labels.map((l) => l.height), 16) * 4.5;
+
+    /**
+     * Apply a displacement to a label descriptor.
+     *
+     * @param {Object} target - Label descriptor
+     * @param {number} dx - Horizontal displacement
+     * @param {number} dy - Vertical displacement
+     */
+    const move = (target, dx, dy) => {
+      target.offsetX += dx;
+      target.offsetY += dy;
+      target.x += dx;
+      target.y += dy;
+    };
+
+    /**
+     * Clamp a label inside the viewport wrapper.
+     *
+     * @param {Object} target - Label descriptor
+     */
+    const clampToViewport = (target) => {
+      let dx = 0;
+      let dy = 0;
+      if (target.x < parentRect.left) {
+        dx = parentRect.left - target.x;
+      } else if (target.x + target.width > parentRect.left + parentRect.width) {
+        dx = parentRect.left + parentRect.width - target.width - target.x;
+      }
+      if (target.y < parentRect.top) {
+        dy = parentRect.top - target.y;
+      } else if (target.y + target.height > parentRect.top + parentRect.height) {
+        dy = parentRect.top + parentRect.height - target.height - target.y;
+      }
+      if (dx !== 0 || dy !== 0) {
+        move(target, dx, dy);
+      }
+    };
+
+    /**
+     * Try to move a label by (dx, dy), keeping it within the viewport wrapper
+     * and within maxOffset distance of its node anchor.
+     *
+     * @param {Object} target - Label descriptor
+     * @param {number} dx - Horizontal displacement
+     * @param {number} dy - Vertical displacement
+     * @returns {boolean} True when the move was accepted
+     */
+    const tryMove = (target, dx, dy) => {
+      const nextOffsetX = target.offsetX + dx;
+      const nextOffsetY = target.offsetY + dy;
+      if (Math.hypot(nextOffsetX, nextOffsetY) > maxOffset) return false;
+
+      const nextX = target.x + dx;
+      const nextY = target.y + dy;
+      if (nextX < parentRect.left || nextX + target.width > parentRect.left + parentRect.width) {
+        return false;
+      }
+      if (nextY < parentRect.top || nextY + target.height > parentRect.top + parentRect.height) {
+        return false;
+      }
+
+      move(target, dx, dy);
+      return true;
+    };
+
+    // First clamp every label to the viewport so base positions outside the
+    // wrapper are pulled in before we resolve overlaps.
+    for (const label of labels) {
+      clampToViewport(label);
+    }
+
+    // Iteratively separate overlapping labels and pull edge-clipped labels inward.
+    for (let iteration = 0; iteration < 10; iteration++) {
+      let moved = false;
+
+      for (let a = 0; a < labels.length; a++) {
+        for (let b = a + 1; b < labels.length; b++) {
+          const boxA = labels[a];
+          const boxB = labels[b];
+
+          const overlapX = Math.min(
+            boxA.x + boxA.width - boxB.x,
+            boxB.x + boxB.width - boxA.x
+          );
+          const overlapY = Math.min(
+            boxA.y + boxA.height - boxB.y,
+            boxB.y + boxB.height - boxA.y
+          );
+
+          if (overlapX <= 0 || overlapY <= 0) continue;
+
+          // Resolve the smaller overlap axis. Horizontal text benefits most
+          // from vertical separation, so prefer the Y axis unless X overlap is smaller.
+          let pushX = 0;
+          let pushY = 0;
+          if (overlapX < overlapY) {
+            pushX = overlapX * 0.51 * (boxB.x >= boxA.x ? 1 : -1);
+          } else {
+            pushY = overlapY * 0.51 * (boxB.y >= boxA.y ? 1 : -1);
+          }
+
+          if (tryMove(boxB, pushX, pushY)) moved = true;
+          if (tryMove(boxA, -pushX, -pushY)) moved = true;
+        }
+      }
+
+      // Nudge labels that overflow the viewport back inside.
+      for (const label of labels) {
+        const overflowLeft = parentRect.left - label.x;
+        const overflowRight = label.x + label.width - (parentRect.left + parentRect.width);
+        const overflowTop = parentRect.top - label.y;
+        const overflowBottom = label.y + label.height - (parentRect.top + parentRect.height);
+
+        let dx = 0;
+        let dy = 0;
+        if (overflowLeft > 0) dx = overflowLeft;
+        if (overflowRight > 0) dx = -overflowRight;
+        if (overflowTop > 0) dy = overflowTop;
+        if (overflowBottom > 0) dy = -overflowBottom;
+
+        if (dx !== 0 || dy !== 0) {
+          if (tryMove(label, dx, dy)) moved = true;
+        }
+      }
+
+      if (!moved) break;
+    }
+
+    // Final hard clamp: no label is allowed to remain outside the viewport,
+    // even if that exceeds the normal maxOffset.
+    for (const label of labels) {
+      clampToViewport(label);
+    }
+
+    for (const label of labels) {
+      const baseTransform = label.element.style.transform;
+      if (label.offsetX !== 0 || label.offsetY !== 0) {
+        // Append the collision offset to the transform CSS2DRenderer just wrote.
+        label.element.style.transform = `${baseTransform} translate(${label.offsetX}px, ${label.offsetY}px)`;
+      }
+    }
   }
 
   /**
@@ -110,10 +355,10 @@ export default class SceneManager {
   /**
    * Fits the camera to show all objects in the scene
    *
-   * @param {number} paddingFactor - Multiplier for extra space around objects (default 1.5)
+   * @param {number} paddingFactor - Multiplier for extra space around objects (default 1.0)
    * @returns {void}
    */
-  fitCameraToScene(paddingFactor = 1.5) {
+  fitCameraToScene(paddingFactor = 1.0) {
     this.fitCameraToSceneWithInsets(
       { top: 0, right: 0, bottom: 0, left: 0 },
       paddingFactor
@@ -130,10 +375,10 @@ export default class SceneManager {
    * rectangle's dimensions.
    *
    * @param {{top: number, right: number, bottom: number, left: number}} insets - Viewport insets in pixels
-   * @param {number} paddingFactor - Multiplier for extra space around objects (default 1.5)
+   * @param {number} paddingFactor - Multiplier for extra space around objects (default 1.0)
    * @returns {void}
    */
-  fitCameraToSceneWithInsets(insets, paddingFactor = 1.7) {
+  fitCameraToSceneWithInsets(insets, paddingFactor = 1.0) {
     const pose = this.computeFitCameraPose(insets, paddingFactor);
     if (!pose) return;
 
@@ -151,14 +396,14 @@ export default class SceneManager {
    *
    * @param {{top: number, right: number, bottom: number, left: number}} insets - Viewport insets in pixels
    * @param {Object} [options] - Animation options
-   * @param {number} [options.paddingFactor=1.35] - Fit padding multiplier for the final pose
+   * @param {number} [options.paddingFactor=1.0] - Fit padding multiplier for the final pose
    * @param {number} [options.duration=900] - Animation duration in milliseconds
    * @param {number} [options.introDistanceScale=1.5] - Intro start distance as a multiple of the fit distance
    * @returns {void}
    */
   animateCameraToSceneWithInsets(insets, options = {}) {
     const {
-      paddingFactor = 1.5,
+      paddingFactor = 1.0,
       duration = 900,
       introDistanceScale = 1.5,
     } = options;
@@ -170,16 +415,16 @@ export default class SceneManager {
     const introPosition = computeIntroStartPosition(pose.target, fitDistance, introDistanceScale);
 
     // Snap to the intro pose, then fly to the fit pose.
-    this.camera.position.set(introPosition.x, introPosition.y, introPosition.z);
-    this.controls.target.copy(pose.target);
-    this.camera.up.set(0, 1, 0);
-    this.camera.lookAt(pose.target);
+    this.applyCameraPose({ position: introPosition, target: pose.target });
 
+    const up = this.camera.up.clone();
     this.cameraAnimation = {
       startCameraPos: this.camera.position.clone(),
       endCameraPos: pose.position,
       startTarget: this.controls.target.clone(),
       endTarget: pose.target,
+      startUp: up,
+      endUp: up,
       startTime: Date.now(),
       duration,
     };
@@ -212,8 +457,10 @@ export default class SceneManager {
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
 
-    // Calculate the maximum dimension
-    const maxDim = Math.max(size.x, size.y, size.z);
+    // Calculate the maximum dimension, then add extra margin for CSS2D labels.
+    // Labels project to fixed-size HTML elements that extend below their anchor
+    // points; without this margin the viewport can clip the text at the edges.
+    const maxDim = Math.max(size.x, size.y, size.z) * (1 + LABEL_MARGIN_RATIO);
 
     const fullWidth = this.container.clientWidth;
     const fullHeight = this.container.clientHeight;
@@ -226,6 +473,10 @@ export default class SceneManager {
       this.camera.fov,
       paddingFactor
     );
+
+    // Remember the fitted distance so labels can be shown or hidden based on
+    // how far the user has zoomed in or out from this view.
+    this.fitDistance = cameraDistance;
 
     // Labels (CSS2DRenderer) and meshes clip beyond the far plane, so it must
     // always contain the whole fitted graph with margin to spare.
@@ -272,13 +523,32 @@ export default class SceneManager {
   }
 
   /**
+   * Computes a stable up vector for a given view direction.
+   *
+   * Prefers world +Y when possible so the screen reads upright; falls back to
+   * world -Z for near-vertical views.
+   *
+   * @param {THREE.Vector3} direction - View direction the camera will look along
+   * @returns {THREE.Vector3} Normalized up vector
+   */
+  computeUpVector(direction) {
+    const worldUp = new THREE.Vector3(0, 1, 0);
+    let up = worldUp.clone().projectOnPlane(direction);
+    if (up.lengthSq() < 0.001) {
+      up = new THREE.Vector3(0, 0, -1).projectOnPlane(direction);
+    }
+    return up.normalize();
+  }
+
+  /**
    * Applies a camera pose immediately and syncs the orbit controls.
    *
    * @param {{position: THREE.Vector3, target: THREE.Vector3}} pose - Pose to apply
    * @returns {void}
    */
   applyCameraPose(pose) {
-    this.camera.up.set(0, 1, 0);
+    this.camera.up.copy(this.computeUpVector(this.defaultViewDirection));
+
     this.camera.position.copy(pose.position);
     this.camera.lookAt(pose.target);
     this.camera.clearViewOffset();
@@ -323,7 +593,7 @@ export default class SceneManager {
    * @param {number} paddingFactor - Multiplier for extra space around objects
    * @returns {number} Required camera distance
    */
-  computeGraphFitDistance(box, paddingFactor = 1.7) {
+  computeGraphFitDistance(box, paddingFactor = 1.0) {
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
     const insets = this.insets || { top: 0, right: 0, bottom: 0, left: 0 };
@@ -340,8 +610,8 @@ export default class SceneManager {
   /**
    * Animates the camera to focus on a target position while keeping every node visible.
    *
-   * The camera rotates to the default isometric direction and zooms to a distance
-   * calculated from the full graph bounding box.
+   * The camera rotates to an isometric direction so the focused node sits in the
+   * foreground and the rest of the graph recedes behind it.
    *
    * @param {THREE.Vector3} targetPosition - Position to focus on
    * @param {number} duration - Animation duration in milliseconds (default 800)
@@ -355,8 +625,8 @@ export default class SceneManager {
       return;
     }
 
-    const cameraDistance = this.computeGraphFitDistance(box, 1.7);
-    const direction = this.defaultViewDirection.clone();
+    const cameraDistance = this.computeGraphFitDistance(box, 1.0);
+    const direction = this.nodeFocusViewDirection.clone();
     const endCameraPos = new THREE.Vector3(
       targetPosition.x,
       targetPosition.y,
@@ -368,6 +638,8 @@ export default class SceneManager {
       endCameraPos,
       startTarget: this.controls.target.clone(),
       endTarget: new THREE.Vector3(targetPosition.x, targetPosition.y, targetPosition.z),
+      startUp: this.camera.up.clone(),
+      endUp: this.computeUpVector(this.nodeFocusViewDirection),
       startTime: Date.now(),
       duration,
     };
@@ -388,7 +660,7 @@ export default class SceneManager {
     }
 
     const center = box.getCenter(new THREE.Vector3());
-    const cameraDistance = this.computeGraphFitDistance(box, 1.7);
+    const cameraDistance = this.computeGraphFitDistance(box, 1.0);
     const direction = this.defaultViewDirection.clone();
     const endCameraPos = center.clone().add(direction.multiplyScalar(cameraDistance));
 
@@ -397,6 +669,8 @@ export default class SceneManager {
       endCameraPos,
       startTarget: this.controls.target.clone(),
       endTarget: center,
+      startUp: this.camera.up.clone(),
+      endUp: this.computeUpVector(this.defaultViewDirection),
       startTime: Date.now(),
       duration,
     };
@@ -427,6 +701,14 @@ export default class SceneManager {
       this.cameraAnimation.endTarget,
       eased
     );
+
+    if (this.cameraAnimation.startUp && this.cameraAnimation.endUp) {
+      this.camera.up.lerpVectors(
+        this.cameraAnimation.startUp,
+        this.cameraAnimation.endUp,
+        eased
+      );
+    }
 
     if (progress >= 1) {
       this.cameraAnimation = null;
