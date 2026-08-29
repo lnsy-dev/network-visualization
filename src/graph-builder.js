@@ -238,4 +238,38 @@ export default class GraphBuilder {
       this.graphGroup.add(line);
     });
   }
+
+  /**
+   * Update the colors of nodes and edges that rely on the foreground color.
+   *
+   * Only touches materials that were created from the default foreground color;
+   * explicitly colored nodes and edges are left unchanged.
+   *
+   * @param {string} foregroundColor - New foreground CSS color string
+   * @param {Object|null} [selectedObject=null] - Currently selected object, whose
+   *   material is temporarily highlighted and should not be overwritten
+   * @returns {void}
+   */
+  updateForegroundColor(foregroundColor, selectedObject = null) {
+    this.foregroundColor = foregroundColor;
+
+    this.nodes.forEach((node) => {
+      if (!node.usesForegroundColor || !node.mesh) return;
+
+      node.color = foregroundColor;
+      node.originalColor = foregroundColor;
+      if (node !== selectedObject) {
+        node.mesh.material.color.set(foregroundColor);
+        node.mesh.material.needsUpdate = true;
+      }
+    });
+
+    this.links.forEach((link) => {
+      if (!link.usesForegroundColor || !link.line) return;
+
+      link.color = foregroundColor;
+      link.line.material.color.set(foregroundColor);
+      link.line.material.needsUpdate = true;
+    });
+  }
 }

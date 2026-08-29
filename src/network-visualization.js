@@ -91,6 +91,7 @@ class NetworkVisualization extends DataroomElement {
     this.setupResizeObserver();
     this.setupWindowResize();
     this.setupShiftZoom();
+    this.setupThemeObserver();
 
     this.sceneManager.startAnimation();
   }
@@ -362,13 +363,67 @@ class NetworkVisualization extends DataroomElement {
   }
 
   /**
+   * Sets up observers that re-read the foreground color when the theme changes.
+   *
+   * Watches the OS color-scheme preference and common class/attribute-based
+   * theme toggles on the document element.
+   *
+   * @returns {void}
+   */
+  setupThemeObserver() {
+    const updateColor = () => this.updateForegroundColor();
+
+    this._onColorSchemeChange = updateColor;
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this._onColorSchemeChange);
+
+    this._themeObserver = new MutationObserver(updateColor);
+    this._themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme', 'theme'],
+    });
+  }
+
+  /**
+   * Removes the theme observers added by setupThemeObserver.
+   *
+   * @returns {void}
+   */
+  cleanupThemeObserver() {
+    if (this._onColorSchemeChange) {
+      window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', this._onColorSchemeChange);
+    }
+    if (this._themeObserver) {
+      this._themeObserver.disconnect();
+    }
+  }
+
+  /**
+   * Re-read the computed foreground color and update node/edge materials.
+   *
+   * @returns {void}
+   */
+  updateForegroundColor() {
+    if (!this.graphBuilder) return;
+
+    const newColor = window.getComputedStyle(this).color;
+    if (newColor === this.foregroundColor) return;
+
+    this.foregroundColor = newColor;
+    const selectedObject = this.interactionHandler
+      ? this.interactionHandler.getSelectedObject()
+      : null;
+    this.graphBuilder.updateForegroundColor(newColor, selectedObject);
+  }
+
+  /**
    * Cleanup function called when the element is removed from the DOM
-   * 
+   *
    * @returns {void}
    */
   disconnect() {
     this.cleanupShiftZoom();
     this.cleanupWindowResize();
+    this.cleanupThemeObserver();
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }

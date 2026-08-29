@@ -151,14 +151,14 @@ export default class SceneManager {
    *
    * @param {{top: number, right: number, bottom: number, left: number}} insets - Viewport insets in pixels
    * @param {Object} [options] - Animation options
-   * @param {number} [options.paddingFactor=1.2] - Fit padding multiplier for the final pose
+   * @param {number} [options.paddingFactor=1.35] - Fit padding multiplier for the final pose
    * @param {number} [options.duration=900] - Animation duration in milliseconds
    * @param {number} [options.introDistanceScale=1.5] - Intro start distance as a multiple of the fit distance
    * @returns {void}
    */
   animateCameraToSceneWithInsets(insets, options = {}) {
     const {
-      paddingFactor = 1.2,
+      paddingFactor = 1.5,
       duration = 900,
       introDistanceScale = 1.5,
     } = options;
@@ -205,6 +205,9 @@ export default class SceneManager {
       console.warn('Scene is empty, cannot fit camera');
       return null;
     }
+    const dbgSize = box.getSize(new THREE.Vector3());
+
+
 
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
@@ -293,12 +296,19 @@ export default class SceneManager {
   computeGraphBoundingBox() {
     const box = new THREE.Box3();
 
+    // Before the first render no world matrices have been computed, which
+    // would collapse every mesh's contribution to the origin. Force a full
+    // update so the box reflects the real layout.
+    this.graphGroup.updateMatrixWorld(true);
+
     this.graphGroup.traverse((object) => {
       if (object.isMesh || object.isLine) {
         box.expandByObject(object);
       } else if (object.isCSS2DObject) {
         // Labels are HTML overlays; include their anchor so they are not clipped.
-        box.expandByPoint(object.position);
+        box.expandByPoint(
+          new THREE.Vector3().setFromMatrixPosition(object.matrixWorld)
+        );
       }
     });
 

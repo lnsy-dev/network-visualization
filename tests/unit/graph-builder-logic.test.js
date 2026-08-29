@@ -20,21 +20,27 @@ import {
 } from '../../src/graph-builder-logic.js';
 
  describe('effectiveNodeSpacing', () => {
-  it('returns the base spacing for scale 1', () => {
-    expect(effectiveNodeSpacing(80, 1)).toBe(80);
+  it('applies the breathing multiplier at scale 1', () => {
+    expect(effectiveNodeSpacing(80, 1)).toBe(160);
   });
 
   it('grows with the square root of the scale', () => {
-    expect(effectiveNodeSpacing(80, 4)).toBe(160);
-    expect(effectiveNodeSpacing(80, 9)).toBe(240);
-    expect(effectiveNodeSpacing(80, 5)).toBeCloseTo(80 * Math.sqrt(5));
+    expect(effectiveNodeSpacing(80, 4)).toBe(320);
+    expect(effectiveNodeSpacing(80, 9)).toBe(480);
+    expect(effectiveNodeSpacing(80, 5)).toBeCloseTo(80 * Math.sqrt(5) * 2);
   });
 
-  it('falls back to scale 1 for invalid values', () => {
-    expect(effectiveNodeSpacing(80)).toBe(80);
-    expect(effectiveNodeSpacing(80, 0)).toBe(80);
-    expect(effectiveNodeSpacing(80, -2)).toBe(80);
-    expect(effectiveNodeSpacing(80, NaN)).toBe(80);
+  it('falls back to scale 1 and default breathing for invalid values', () => {
+    expect(effectiveNodeSpacing(80)).toBe(160);
+    expect(effectiveNodeSpacing(80, 0)).toBe(160);
+    expect(effectiveNodeSpacing(80, -2)).toBe(160);
+    expect(effectiveNodeSpacing(80, NaN)).toBe(160);
+    expect(effectiveNodeSpacing(80, 1, NaN)).toBe(160);
+  });
+
+  it('accepts a custom breathing multiplier', () => {
+    expect(effectiveNodeSpacing(80, 1, 1)).toBe(80);
+    expect(effectiveNodeSpacing(80, 1, 0)).toBe(160);
   });
 });
 
@@ -75,6 +81,7 @@ describe('graph-builder-logic', () => {
       expect(node.id).toBe('n1');
       expect(node.name).toBe('Node 1');
       expect(node.color).toBe('#ff0000');
+      expect(node.usesForegroundColor).toBe(false);
       expect(node.wireframe).toBe(true);
       expect(node.shape).toBe('cube');
       expect(node.content).toBe('<p>Hello</p>');
@@ -86,6 +93,7 @@ describe('graph-builder-logic', () => {
 
       expect(node.name).toBeNull();
       expect(node.color).toBe('#000000');
+      expect(node.usesForegroundColor).toBe(true);
       expect(node.wireframe).toBe(false);
       expect(node.shape).toBe('pyramid');
       expect(node.content).toBe('');
@@ -94,6 +102,7 @@ describe('graph-builder-logic', () => {
     it('uses the foreground color fallback', () => {
       const node = parseNodeData({ id: 'n1', foregroundColor: '#00ff00' });
       expect(node.color).toBe('#00ff00');
+      expect(node.usesForegroundColor).toBe(true);
     });
   });
 
@@ -111,6 +120,7 @@ describe('graph-builder-logic', () => {
       expect(link.target).toBe('b');
       expect(link.name).toBe('relates');
       expect(link.color).toBe('#0000ff');
+      expect(link.usesForegroundColor).toBe(false);
       expect(link.content).toBe('edge content');
     });
 
@@ -119,7 +129,14 @@ describe('graph-builder-logic', () => {
 
       expect(link.name).toBeNull();
       expect(link.color).toBe('#000000');
+      expect(link.usesForegroundColor).toBe(true);
       expect(link.content).toBe('');
+    });
+
+    it('uses the foreground color fallback', () => {
+      const link = parseEdgeData({ source: 'a', target: 'b', foregroundColor: '#00ff00' });
+      expect(link.color).toBe('#00ff00');
+      expect(link.usesForegroundColor).toBe(true);
     });
   });
 
@@ -441,7 +458,7 @@ describe('graph-builder-logic', () => {
     it('exposes sensible defaults', () => {
       expect(DEFAULT_RELAX_OPTIONS.linkDistance).toBe(80);
       expect(DEFAULT_RELAX_OPTIONS.iterations).toBeGreaterThan(0);
-      expect(DEFAULT_RELAX_OPTIONS.repulsion).toBeGreaterThan(0);
+      expect(DEFAULT_RELAX_OPTIONS.repulsion).toBe(12000);
       expect(DEFAULT_RELAX_OPTIONS.springStrength).toBeGreaterThan(0);
       expect(DEFAULT_RELAX_OPTIONS.anchorStrength).toBeGreaterThan(0);
       expect(DEFAULT_RELAX_OPTIONS.maxDisplacement).toBeGreaterThan(0);

@@ -47,20 +47,30 @@ export const ADJACENT_OFFSETS = [
 ];
 
 /**
+ * Default extra spacing multiplier applied on top of the scaled spacing.
+ *
+ * @constant {number}
+ */
+export const SPACING_BREATHING = 2;
+
+/**
  * Compute the layout spacing for a given node scale.
  *
  * Node meshes grow linearly with the scale attribute, so spacing grows with
  * the square root of the scale: scaled-up nodes keep breathing room without
  * fully neutralizing the scale (the camera auto-fits, so proportional spacing
- * would make the attribute a visual no-op).
+ * would make the attribute a visual no-op). A breathing multiplier adds extra
+ * space between nodes so labels and shapes never crowd each other.
  *
  * @param {number} nodeSpacing - Base spacing between grid cells
  * @param {number} [nodeScale=1] - Node scale multiplier
+ * @param {number} [breathing=SPACING_BREATHING] - Extra spacing multiplier
  * @returns {number} Effective spacing in world units
  */
-export function effectiveNodeSpacing(nodeSpacing, nodeScale = 1) {
+export function effectiveNodeSpacing(nodeSpacing, nodeScale = 1, breathing = SPACING_BREATHING) {
   const scale = Number.isFinite(nodeScale) && nodeScale > 0 ? nodeScale : 1;
-  return nodeSpacing * Math.sqrt(scale);
+  const safeBreathing = Number.isFinite(breathing) && breathing > 0 ? breathing : SPACING_BREATHING;
+  return nodeSpacing * Math.sqrt(scale) * safeBreathing;
 }
 
 /**
@@ -89,13 +99,15 @@ export function parseScaleAttribute(value, fallback = 1) {
  * @param {string} [data.shape] - Geometry shape
  * @param {string} [data.content] - Inner HTML content
  * @param {string} [data.foregroundColor] - Fallback color when none is provided
- * @returns {Object} Normalized node object
+ * @returns {Object} Normalized node object, including `usesForegroundColor` when
+ *   no explicit color was supplied
  */
 export function parseNodeData(data) {
   return {
     id: data.id,
     name: data.name || null,
     color: data.color || data.foregroundColor || '#000000',
+    usesForegroundColor: !data.color,
     wireframe: Boolean(data.wireframe),
     shape: data.shape || 'pyramid',
     content: data.content || '',
@@ -114,7 +126,8 @@ export function parseNodeData(data) {
  * @param {string} [data.color] - Edge color
  * @param {string} [data.content] - Inner HTML content
  * @param {string} [data.foregroundColor] - Fallback color when none is provided
- * @returns {Object} Normalized link object
+ * @returns {Object} Normalized link object, including `usesForegroundColor`
+ *   when no explicit color was supplied
  */
 export function parseEdgeData(data) {
   return {
@@ -122,6 +135,7 @@ export function parseEdgeData(data) {
     target: data.target,
     name: data.name || null,
     color: data.color || data.foregroundColor || '#000000',
+    usesForegroundColor: !data.color,
     content: data.content || '',
     el: data.el || null,
   };
@@ -190,7 +204,7 @@ export const DEFAULT_RELAX_OPTIONS = {
   linkDistance: 80,
   springStrength: 0.1,
   groupStrength: 0.02,
-  repulsion: 6000,
+  repulsion: 12000,
   anchorStrength: 0.02,
   maxDisplacement: 6,
 };
